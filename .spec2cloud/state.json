@@ -1,6 +1,8 @@
 {
   "mode": "brownfield",
-  "phase": "modernization-planning",
+  "phase": "spec-enable",
+  "step": "frd-generation",
+  "prdStatus": "generated",
   "testability": "partial",
   "incrementPlan": [
     { "id": "mod-001", "type": "modernization", "title": "Fix @Bean on Web S3Client", "status": "planned" },
