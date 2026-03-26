@@ -1,0 +1,55 @@
+{
+    "name": "Asset Manager - JDK 8 (Source)",
+    "dockerComposeFile": "../docker-compose.yml",
+    "service": "app",
+    "workspaceFolder": "/workspaces/app",
+
+    "features": {
+        "ghcr.io/devcontainers/features/java:1": {
+            "version": "8",
+            "installMaven": "true",
+            "installGradle": "false"
+        }
+    },
+
+    "containerEnv": {
+        "POSTGRES_HOST": "postgres",
+        "SPRING_RABBITMQ_HOST": "rabbitmq",
+        "SPRING_PROFILES_ACTIVE": "dev"
+    },
+
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "vscjava.vscode-java-pack",
+                "vscjava.vscode-spring-boot-dashboard",
+                "vmware.vscode-spring-boot",
+                "redhat.java",
+                "vscjava.vscode-maven"
+            ],
+            "settings": {
+                "terminal.integrated.cwd": "${containerWorkspaceFolder}",
+                "java.configuration.runtimes": [
+                    {
+                        "name": "JavaSE-1.8",
+                        "path": "/usr/local/sdkman/candidates/java/current",
+                        "default": true
+                    }
+                ]
+            }
+        }
+    },
+
+    "forwardPorts": [8080, 5432, 5672, 15672],
+    "portsAttributes": {
+        "8080": { "label": "Web App" },
+        "5432": { "label": "PostgreSQL" },
+        "5672": { "label": "RabbitMQ" },
+        "15672": { "label": "RabbitMQ Management" }
+    },
+
+    "postCreateCommand": "./mvnw dependency:resolve",
+    "postStartCommand": "git config --global --add safe.directory ${containerWorkspaceFolder}",
+
+    "remoteUser": "vscode"
+}
