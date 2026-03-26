@@ -14,19 +14,22 @@
     { "id": "mod-007", "type": "modernization", "title": "Optimize Database Queries", "status": "planned" },
     { "id": "mod-008", "type": "modernization", "title": "Add Input Validation", "status": "planned" },
     { "id": "mod-009", "type": "modernization", "title": "Add Transaction Management", "status": "planned" },
-    { "id": "mod-010", "type": "modernization", "title": "Update AWS SDK", "status": "planned" },
+    { "id": "mod-010", "type": "modernization", "title": "SUPERSEDED — see mod-018/mod-019", "status": "superseded" },
     { "id": "mod-011", "type": "modernization", "title": "Adopt Modern Java Idioms", "status": "planned" },
     { "id": "mod-012", "type": "modernization", "title": "Web Module Unit Tests", "status": "planned" },
     { "id": "mod-013", "type": "modernization", "title": "Worker Module Unit Tests", "status": "planned" },
     { "id": "mod-014", "type": "modernization", "title": "Integration Tests (Testcontainers)", "status": "planned" },
     { "id": "mod-015", "type": "modernization", "title": "CI/CD Pipeline", "status": "planned" },
     { "id": "mod-016", "type": "modernization", "title": "Flyway Schema Migrations", "status": "planned" },
-    { "id": "mod-017", "type": "modernization", "title": "API Documentation (Springdoc)", "status": "planned" }
+    { "id": "mod-017", "type": "modernization", "title": "API Documentation (Springdoc)", "status": "planned" },
+    { "id": "mod-018", "type": "modernization", "title": "Rename S3 Names to Cloud-Agnostic", "status": "planned" },
+    { "id": "mod-019", "type": "modernization", "title": "Replace AWS S3 with Azure Blob Storage", "status": "planned" }
   ],
   "adrs": [
     { "id": "ADR-001", "title": "Java 8 to 21 Upgrade", "status": "proposed" },
     { "id": "ADR-002", "title": "Spring Boot 3 Upgrade", "status": "proposed" },
-    { "id": "ADR-003", "title": "Shared Maven Module", "status": "proposed" }
+    { "id": "ADR-003", "title": "Shared Maven Module", "status": "proposed" },
+    { "id": "ADR-004", "title": "AWS to Azure Migration", "status": "proposed" }
   ],
-  "lastUpdated": "2026-03-26T13:19:35.395Z"
+  "lastUpdated": "2026-03-26T13:46:46.828Z"
 }

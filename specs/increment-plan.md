@@ -1,7 +1,9 @@
 # Modernization Increment Plan
 
 > Generated from `specs/assessment/modernization.md` — 28 findings across 6 categories.
-> ADR constraints: ADR-001 (Java 21), ADR-002 (Spring Boot 3.4.x), ADR-003 (Shared Maven module).
+> ADR constraints: ADR-001 (Java 21), ADR-002 (Spring Boot 3.4.x), ADR-003 (Shared Maven module), ADR-004 (AWS → Azure).
+>
+> **mod-010 (Update AWS SDK) has been superseded by mod-018/mod-019 (Azure migration) per ADR-004.**
 
 ## Dependency Graph
 
@@ -10,13 +12,12 @@ mod-001 ──┐
 mod-002 ──┼──→ mod-003 ──┬──→ mod-004
           │              └──→ mod-005 ──→ mod-006 ──┬──→ mod-007 ──┐
           │                                         ├──→ mod-008   │
-          │                                         ├──→ mod-009   │
-          │                                         ├──→ mod-010   ├──→ mod-012 ──┬──→ mod-014
+          │                                         ├──→ mod-009   ├──→ mod-012 ──┬──→ mod-014
           │                                         ├──→ mod-011   ├──→ mod-013 ──┘
           │                                         ├──→ mod-015   │
           │                                         ├──→ mod-016   │
-          │                                         └──→ mod-017   │
-          │                                                        └──→ mod-011 (also dep on 012,013)
+          │                                         ├──→ mod-017   │
+          │                                         └──→ mod-018 ──→ mod-019
 ```
 
 ### Topological Order (Tiers)
@@ -27,7 +28,8 @@ mod-002 ──┼──→ mod-003 ──┬──→ mod-004
 | 1 | mod-003 | — |
 | 2 | mod-004, mod-005 | Yes |
 | 3 | mod-006 | — |
-| 4 | mod-007, mod-008, mod-009, mod-010, mod-015, mod-016, mod-017 | Yes |
+| 4 | mod-007, mod-008, mod-009, mod-015, mod-016, mod-017, mod-018 | Yes |
+| 5 | mod-019, mod-012, mod-013 | Yes |
 | 5 | mod-012, mod-013 | Yes |
 | 6 | mod-011, mod-014 | Yes |
 
@@ -272,27 +274,10 @@ mod-002 ──┼──→ mod-003 ──┬──→ mod-004
 
 ---
 
-## mod-010: Update AWS SDK to Latest Version
+## ~~mod-010: Update AWS SDK to Latest Version~~ → SUPERSEDED by mod-018/mod-019
 
-- **Type:** modernization
-- **Assessment Findings:** D6 (Medium)
-- **Scope:** Update `<aws-sdk.version>` from `2.25.13` to `2.42.21` in both `web/pom.xml` and `worker/pom.xml` (or centralize in parent/common POM). No code changes expected — AWS SDK v2 has stable APIs.
-- **Acceptance Criteria:**
-  - [ ] AWS SDK version is `2.42.21` (or latest 2.x) in all POMs
-  - [ ] Both modules compile without errors
-  - [ ] All existing tests pass
-  - [ ] S3 operations work unchanged
-- **Test Strategy:**
-  - Build: `./mvnw clean compile`
-  - Run all tests: `./mvnw test`
-  - Manual: upload and download a file via S3 — verify unchanged behavior
-- **Gherkin Deltas:**
-  - New: none
-  - Modified: none
-  - Regression: all existing tests must pass
-- **Dependencies:** mod-006 (Spring Boot 3 may manage SDK version)
-- **Rollback Plan:** Revert `<aws-sdk.version>` to `2.25.13`.
-- **Risk:** Low — AWS SDK v2 has stable, backward-compatible APIs. Drop-in version bump.
+> **This increment has been superseded by the AWS → Azure migration (ADR-004).**
+> The AWS SDK will be removed entirely, not updated. See mod-018 and mod-019 below.
 
 ---
 
@@ -474,6 +459,117 @@ mod-002 ──┼──→ mod-003 ──┬──→ mod-004
 
 ---
 
+## mod-018: Rename S3-Specific Identifiers to Cloud-Agnostic Names
+
+- **Type:** modernization (cloud migration — phase 1)
+- **Assessment Findings:** New (per ADR-004: AWS → Azure migration)
+- **ADR:** ADR-004 (Migrate from AWS to Azure)
+- **Scope:** Rename all AWS/S3-branded class names, field names, and UI text to cloud-agnostic equivalents. No SDK changes — same AWS SDK still compiles after renames. This isolates the naming refactor from the SDK swap, reducing the blast radius of each change.
+- **Renames:**
+
+  | Current | New | Location |
+  |---------|-----|----------|
+  | `S3Controller` | `StorageController` | `web/../controller/` |
+  | `S3StorageItem` | `StorageItem` | `web/../model/` (or `common/../model/` after mod-003) |
+  | `AwsS3Service` | `CloudStorageService` | `web/../service/` |
+  | `AwsS3Config` (web) | `CloudStorageConfig` | `web/../config/` |
+  | `AwsS3Config` (worker) | `CloudStorageConfig` | `worker/../config/` |
+  | `S3FileProcessingService` | `CloudFileProcessingService` | `worker/../service/` |
+  | `S3FileProcessingServiceTest` | `CloudFileProcessingServiceTest` | `worker/../service/` |
+  | `s3Key` (field in ImageMetadata) | `storageKey` | `common/../model/ImageMetadata.java` |
+  | `s3Url` (field in ImageMetadata) | `storageUrl` | `common/../model/ImageMetadata.java` |
+  | `"AWS S3 Asset Manager"` | `"Asset Manager"` | `web/templates/layout.html` |
+  | `"S3 Object List"` | `"Image List"` | `web/templates/list.html` |
+  | `"Upload to S3"` | `"Upload Image"` | `web/templates/upload.html` |
+  | `"Upload Image to S3"` | `"Upload Image"` | `web/templates/upload.html` |
+  | `"No images found in the S3 bucket"` | `"No images found"` | `web/templates/list.html` |
+  | `return "s3"` | `return "cloud"` | `AwsS3Service.getStorageType()`, `S3FileProcessingService.getStorageType()` |
+
+- **Acceptance Criteria:**
+  - [ ] Zero classes with "S3" or "Aws" in their name (except temporarily internal AWS SDK types)
+  - [ ] Zero model fields with "s3" prefix (`s3Key` → `storageKey`, `s3Url` → `storageUrl`)
+  - [ ] Zero user-visible "AWS" or "S3" text in Thymeleaf templates
+  - [ ] All getters/setters updated (`getS3Key()` → `getStorageKey()`, etc.)
+  - [ ] Hibernate column mapping updated (add `@Column(name="storage_key")` to avoid DB schema break, or run Flyway migration)
+  - [ ] Both modules compile: `./mvnw clean compile`
+  - [ ] All existing tests pass (with updated class/field names)
+  - [ ] Application behavior unchanged
+- **Test Strategy:**
+  - Build: `./mvnw clean compile`
+  - Run all tests: `./mvnw test`
+  - Grep for "S3" / "Aws" / "s3Key" / "s3Url" in `src/main/java` — must return zero hits (excluding SDK imports)
+  - Manual: upload, list, view, delete — unchanged behavior
+- **Gherkin Deltas:**
+  - New: none (renaming only, no behavioral change)
+  - Modified: none
+  - Regression: all tests must pass with updated names
+- **Dependencies:** mod-006 (Spring Boot 3), mod-003 (shared module — models centralized)
+- **Rollback Plan:** Revert all renames from git diff. Rename files back.
+- **Risk:** Medium — widespread rename touches 15+ files. Risk of missed reference. Mitigated by: compile-time verification (broken imports/references fail the build), grep validation, and small codebase (~1200 lines).
+
+---
+
+## mod-019: Replace AWS S3 SDK with Azure Blob Storage SDK
+
+- **Type:** modernization (cloud migration — phase 2)
+- **Assessment Findings:** New (per ADR-004: AWS → Azure migration)
+- **ADR:** ADR-004 (Migrate from AWS to Azure)
+- **Scope:** Replace the AWS S3 SDK with Azure Blob Storage SDK. Replace Maven dependencies, configuration classes, service implementations, and application properties. The naming refactor (mod-018) has already made class/field names cloud-agnostic, so this increment focuses purely on SDK swap.
+- **Changes:**
+
+  **Maven dependencies** (in `common/pom.xml` or module POMs):
+  - Remove: `software.amazon.awssdk:s3`
+  - Add: `com.azure:azure-storage-blob:12.33.2`
+  - Add: `com.azure.spring:spring-cloud-azure-starter-storage-blob:5.11.0`
+  - Add: `com.azure:azure-identity` (for `DefaultAzureCredential`)
+
+  **Configuration** (`application.properties`):
+  - Remove: `aws.accessKeyId`, `aws.secretKey`, `aws.region`, `aws.s3.bucket`
+  - Add: `spring.cloud.azure.storage.blob.account-name=${AZURE_STORAGE_ACCOUNT}`, `spring.cloud.azure.storage.blob.container-name=${AZURE_STORAGE_CONTAINER}`, `spring.cloud.azure.storage.blob.account-key=${AZURE_STORAGE_KEY}` (or use managed identity)
+
+  **Config class**:
+  - Remove: `CloudStorageConfig` (was AwsS3Config) with S3Client bean
+  - Add: `AzureBlobConfig` with `BlobContainerClient` bean (or rely on Spring Cloud Azure auto-config)
+
+  **Web service** (`CloudStorageService` → `AzureBlobStorageService`):
+  - `listObjects()`: `BlobContainerClient.listBlobs()` instead of `S3Client.listObjectsV2()`
+  - `uploadObject()`: `BlobClient.upload()` instead of `S3Client.putObject()`
+  - `getObject()`: `BlobClient.openInputStream()` instead of `S3Client.getObject()`
+  - `deleteObject()`: `BlobClient.delete()` instead of `S3Client.deleteObject()`
+
+  **Worker service** (`CloudFileProcessingService` → `AzureBlobFileProcessingService`):
+  - `downloadOriginal()`: `BlobClient.downloadToFile()` instead of `S3Client.getObject()`
+  - `uploadThumbnail()`: `BlobClient.uploadFromFile()` instead of `S3Client.putObject()`
+  - `generateUrl()`: `BlobClient.getBlobUrl()` instead of `S3Client.utilities().getUrl()`
+
+  **Tests**:
+  - Mock `BlobContainerClient`/`BlobClient` instead of `S3Client`
+  - Update all import statements
+
+- **Acceptance Criteria:**
+  - [ ] Zero `software.amazon.awssdk` imports in any Java file
+  - [ ] Zero `aws.*` properties in any `application.properties`
+  - [ ] `com.azure:azure-storage-blob` dependency in POM
+  - [ ] `BlobContainerClient` (or `BlobServiceClient`) bean available in Spring context
+  - [ ] All CRUD operations work: upload, list, view/download, delete
+  - [ ] Thumbnail generation works via worker module
+  - [ ] All tests pass with Azure SDK mocks
+  - [ ] Application starts and functions with Azure Blob Storage config
+- **Test Strategy:**
+  - Build: `./mvnw clean compile`
+  - Run all tests: `./mvnw test` (with mocked Azure clients)
+  - Grep for `software.amazon.awssdk` — must return zero hits
+  - Manual: test against Azurite (Azure Storage emulator) or real Azure Blob Storage
+- **Gherkin Deltas:**
+  - New: none (storage backend swap, behavior identical)
+  - Modified: none
+  - Regression: all tests must pass — exact same file operations, different SDK
+- **Dependencies:** mod-018 (names are cloud-agnostic), mod-006 (Spring Boot 3 for Spring Cloud Azure compatibility)
+- **Rollback Plan:** Revert POM changes, restore AWS SDK dependency and config classes from git. Restore `application.properties`.
+- **Risk:** High — complete SDK replacement across both modules. Every storage operation must be re-implemented against the Azure Blob API. Mitigated by: small codebase, well-documented Azure Blob Java SDK, Azurite local emulator for testing, and the naming refactor (mod-018) isolating the rename from the SDK swap.
+
+---
+
 ## Summary
 
 | ID | Title | Severity | Findings | Dependencies | Risk |
@@ -487,7 +583,7 @@ mod-002 ──┼──→ mod-003 ──┬──→ mod-004
 | mod-007 | Optimize Database Queries | High | A3, A4 | mod-006 | Low |
 | mod-008 | Add Input Validation | High | S3 | mod-006 | Low |
 | mod-009 | Add Transaction Management | Medium | A6 | mod-006 | Medium |
-| mod-010 | Update AWS SDK | Medium | D6 | mod-006 | Low |
+| mod-010 | ~~Update AWS SDK~~ → **SUPERSEDED** | — | D6 | — | — |
 | mod-011 | Adopt Modern Java Idioms | Medium | P4, P5 | mod-006, mod-007 | Medium |
 | mod-012 | Web Module Unit Tests | Critical | T1 | mod-006, mod-007 | Low |
 | mod-013 | Worker Module Unit Tests | High | T2 | mod-006, mod-007 | Low |
@@ -495,6 +591,8 @@ mod-002 ──┼──→ mod-003 ──┬──→ mod-004
 | mod-015 | CI/CD Pipeline | High | CI1 | mod-006 | Low |
 | mod-016 | Flyway Schema Migrations | Medium | S4 | mod-006 | Medium |
 | mod-017 | API Documentation (Springdoc) | Medium | DOC1 | mod-006 | Low |
+| mod-018 | Rename S3 Names → Cloud-Agnostic | Medium | ADR-004 | mod-006, mod-003 | Medium |
+| mod-019 | Replace AWS S3 with Azure Blob Storage | High | ADR-004 | mod-018 | High |
 
 ### Finding Coverage
 
@@ -510,7 +608,7 @@ All 28 assessment findings are covered:
 | A2 | mod-003 | | A4 | mod-007 |
 | P3 | mod-004 | | S3 | mod-008 |
 | D2 | mod-005 | | A6 | mod-009 |
-| D5 | mod-005 | | D6 | mod-010 |
+| D5 | mod-005 | | D6 | ~~mod-010~~ mod-019 |
 | D1 | mod-006 | | T1 | mod-012 |
 | D3 | mod-006 | | T2 | mod-013 |
 | D4 | mod-006 | | T3 | mod-014 |
