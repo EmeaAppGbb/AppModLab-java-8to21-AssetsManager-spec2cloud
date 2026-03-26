@@ -1,0 +1,30 @@
+{
+  "mode": "brownfield",
+  "phase": "modernization-planning",
+  "testability": "partial",
+  "incrementPlan": [
+    { "id": "mod-001", "type": "modernization", "title": "Fix @Bean on Web S3Client", "status": "planned" },
+    { "id": "mod-002", "type": "modernization", "title": "Externalize Credentials", "status": "planned" },
+    { "id": "mod-003", "type": "modernization", "title": "Create Shared Maven Module", "status": "planned" },
+    { "id": "mod-004", "type": "modernization", "title": "Standardize Logging", "status": "planned" },
+    { "id": "mod-005", "type": "modernization", "title": "Upgrade Java 8 to 21", "status": "planned" },
+    { "id": "mod-006", "type": "modernization", "title": "Upgrade Spring Boot 2.7 to 3.4.x", "status": "planned" },
+    { "id": "mod-007", "type": "modernization", "title": "Optimize Database Queries", "status": "planned" },
+    { "id": "mod-008", "type": "modernization", "title": "Add Input Validation", "status": "planned" },
+    { "id": "mod-009", "type": "modernization", "title": "Add Transaction Management", "status": "planned" },
+    { "id": "mod-010", "type": "modernization", "title": "Update AWS SDK", "status": "planned" },
+    { "id": "mod-011", "type": "modernization", "title": "Adopt Modern Java Idioms", "status": "planned" },
+    { "id": "mod-012", "type": "modernization", "title": "Web Module Unit Tests", "status": "planned" },
+    { "id": "mod-013", "type": "modernization", "title": "Worker Module Unit Tests", "status": "planned" },
+    { "id": "mod-014", "type": "modernization", "title": "Integration Tests (Testcontainers)", "status": "planned" },
+    { "id": "mod-015", "type": "modernization", "title": "CI/CD Pipeline", "status": "planned" },
+    { "id": "mod-016", "type": "modernization", "title": "Flyway Schema Migrations", "status": "planned" },
+    { "id": "mod-017", "type": "modernization", "title": "API Documentation (Springdoc)", "status": "planned" }
+  ],
+  "adrs": [
+    { "id": "ADR-001", "title": "Java 8 to 21 Upgrade", "status": "proposed" },
+    { "id": "ADR-002", "title": "Spring Boot 3 Upgrade", "status": "proposed" },
+    { "id": "ADR-003", "title": "Shared Maven Module", "status": "proposed" }
+  ],
+  "lastUpdated": "2026-03-26T13:19:35.395Z"
+}
