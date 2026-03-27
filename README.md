@@ -510,6 +510,8 @@ Review the updated specifications to ensure that the new requirement has been pr
 Implement the new Folder/Album Organization functionality based on the updated specifications.
 ```
 
+![New Feature Implemented](img/step7-spec-newfeature-implemented.png)
+
 > 🎁 **What you get:** Copilot generates the necessary code changes to implement the Folder/Album Organization functionality, ensuring it aligns with the specifications and integrates seamlessly with the existing application.
 
 ---
