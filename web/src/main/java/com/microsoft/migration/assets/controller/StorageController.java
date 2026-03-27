@@ -6,6 +6,7 @@ import com.microsoft.migration.assets.service.StorageService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -21,6 +22,7 @@ import java.io.InputStream;
 import java.util.List;
 import java.util.Optional;
 
+@Slf4j
 @Controller
 @RequestMapping("/" + StorageConstants.STORAGE_PATH)
 @RequiredArgsConstructor
@@ -56,7 +58,8 @@ public class StorageController {
             redirectAttributes.addFlashAttribute("success", "File uploaded successfully");
             return "redirect:/" + StorageConstants.STORAGE_PATH;
         } catch (IOException e) {
-            redirectAttributes.addFlashAttribute("error", "Failed to upload file: " + e.getMessage());
+            log.error("File upload failed", e);
+            redirectAttributes.addFlashAttribute("error", "Failed to upload file. Please try again.");
             return "redirect:/" + StorageConstants.STORAGE_PATH + "/upload";
         }
     }
@@ -79,7 +82,8 @@ public class StorageController {
                 return "redirect:/" + StorageConstants.STORAGE_PATH;
             }
         } catch (Exception e) {
-            redirectAttributes.addFlashAttribute("error", "Failed to view image: " + e.getMessage());
+            log.error("Failed to view image", e);
+            redirectAttributes.addFlashAttribute("error", "Failed to view image. Please try again.");
             return "redirect:/" + StorageConstants.STORAGE_PATH;
         }
     }
@@ -115,7 +119,8 @@ public class StorageController {
             storageService.deleteObject(key);
             redirectAttributes.addFlashAttribute("success", "File deleted successfully");
         } catch (Exception e) {
-            redirectAttributes.addFlashAttribute("error", "Failed to delete file: " + e.getMessage());
+            log.error("File deletion failed", e);
+            redirectAttributes.addFlashAttribute("error", "Failed to delete file. Please try again.");
         }
         return "redirect:/" + StorageConstants.STORAGE_PATH;
     }
@@ -124,7 +129,13 @@ public class StorageController {
         if (key == null || key.isBlank()) {
             throw new IllegalArgumentException("Storage key must not be empty");
         }
-        if (key.contains("..") || key.contains("/") || key.contains("\\")) {
+        // Decode URL-encoded characters before validation
+        String decoded = java.net.URLDecoder.decode(key, java.nio.charset.StandardCharsets.UTF_8);
+        if (decoded.contains("..") || decoded.contains("/") || decoded.contains("\\")) {
+            throw new IllegalArgumentException("Storage key contains invalid characters");
+        }
+        // Reject control characters and null bytes
+        if (decoded.chars().anyMatch(c -> c < 0x20 || c == 0x7F)) {
             throw new IllegalArgumentException("Storage key contains invalid characters");
         }
     }
