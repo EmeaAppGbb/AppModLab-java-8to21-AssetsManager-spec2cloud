@@ -31,5 +31,5 @@
     { "id": "ADR-003", "title": "Shared Maven Module", "status": "proposed" },
     { "id": "ADR-004", "title": "AWS to Azure Migration", "status": "proposed" }
   ],
-  "lastUpdated": "2026-03-26T13:46:46.828Z"
+  "lastUpdated": "2026-03-27T10:08:18.667Z"
 }
