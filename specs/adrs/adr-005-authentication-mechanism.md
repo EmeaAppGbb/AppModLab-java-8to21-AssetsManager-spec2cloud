@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed
+Accepted — Form Login with Local Database (Option A)
 
 ## Context
 
@@ -27,10 +27,9 @@ The security assessment (Level 3) found that the application has **zero authenti
 
 ## Decision
 
-**Deferred — requires user input.** The authentication mechanism must be chosen based on the deployment context:
-- **Internal/enterprise deployment** → Option B (Azure AD) recommended
-- **Public-facing application** → Option A (Form Login) recommended
-- **API-first / microservice** → Option C (OAuth 2.0) recommended
+**Option A: Spring Security with Form Login and local database user store.**
+
+Users are persisted in the `app_user` PostgreSQL table (managed by Flyway V2 migration). Passwords are BCrypt-hashed. Default admin user: `admin`/`admin`. Session-based authentication with HttpOnly/SameSite cookies. Authorization: `ROLE_ADMIN` required for delete and Swagger UI; all other storage endpoints require authentication.
 
 ## Consequences
 

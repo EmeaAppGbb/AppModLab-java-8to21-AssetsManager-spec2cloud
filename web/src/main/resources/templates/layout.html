@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" th:fragment="layout(title, content)">
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security" th:fragment="layout(title, content)">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -25,6 +25,10 @@
                 <div class="ms-auto">
                     <a class="btn btn-outline-primary me-2" th:href="@{/storage}">All Images</a>
                     <a class="btn btn-primary" th:href="@{/storage/upload}">Upload New Image</a>
+                    <span sec:authentication="name" class="me-2 text-muted"></span>
+                    <form th:action="@{/logout}" method="post" class="d-inline">
+                        <button type="submit" class="btn btn-outline-secondary btn-sm">Logout</button>
+                    </form>
                 </div>
             </div>
         </header>
