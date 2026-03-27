@@ -1,7 +1,7 @@
 {
   "mode": "brownfield",
-  "phase": "modernization-delivery",
-  "step": "implementing",
+  "phase": "modernization-complete",
+  "step": "all-increments-delivered",
   "prdStatus": "generated",
   "testability": "partial",
   "incrementPlan": [
