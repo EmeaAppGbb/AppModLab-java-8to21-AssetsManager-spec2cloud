@@ -24,11 +24,13 @@ import java.util.Optional;
 @Controller
 @RequestMapping("/" + StorageConstants.STORAGE_PATH)
 @RequiredArgsConstructor
+@Tag(name = "Storage", description = "Image storage operations")
 public class StorageController {
 
     private final StorageService storageService;
 
     @GetMapping
+    @Operation(summary = "List all images")
     public String listObjects(Model model) {
         List<StorageItem> objects = storageService.listObjects();
         model.addAttribute("objects", objects);
@@ -36,11 +38,13 @@ public class StorageController {
     }
 
     @GetMapping("/upload")
+    @Operation(summary = "Show upload form")
     public String uploadForm() {
         return "upload";
     }
 
     @PostMapping("/upload")
+    @Operation(summary = "Upload an image")
     public String uploadObject(@RequestParam("file") MultipartFile file, RedirectAttributes redirectAttributes) {
         try {
             if (file.isEmpty()) {
@@ -58,6 +62,7 @@ public class StorageController {
     }
     
     @GetMapping("/view-page/{key}")
+    @Operation(summary = "View image details page")
     public String viewObjectPage(@PathVariable String key, Model model, RedirectAttributes redirectAttributes) {
         validateKey(key);
         try {
@@ -80,6 +85,7 @@ public class StorageController {
     }
 
     @GetMapping("/view/{key}")
+    @Operation(summary = "Download image content")
     public ResponseEntity<InputStreamResource> viewObject(@PathVariable String key) {
         try {
             validateKey(key);
@@ -102,6 +108,7 @@ public class StorageController {
     }
 
     @PostMapping("/delete/{key}")
+    @Operation(summary = "Delete an image")
     public String deleteObject(@PathVariable String key, RedirectAttributes redirectAttributes) {
         validateKey(key);
         try {
