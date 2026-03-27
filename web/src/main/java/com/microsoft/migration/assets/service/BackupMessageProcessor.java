@@ -1,6 +1,6 @@
 package com.microsoft.migration.assets.service;
 
-import com.microsoft.migration.assets.model.ImageProcessingMessage;
+import com.microsoft.migration.assets.common.model.ImageProcessingMessage;
 import com.rabbitmq.client.Channel;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
@@ -40,7 +40,7 @@ public class BackupMessageProcessor {
             channel.basicAck(deliveryTag, false);
             log.info("[BACKUP] Successfully processed message: {}", message.getKey());
         } catch (Exception e) {
-            log.error("[BACKUP] Failed to process message: " + message.getKey(), e);
+            log.error("[BACKUP] Failed to process message: {}", message.getKey(), e);
             
             try {
                 // Reject the message and requeue it

@@ -1,6 +1,6 @@
 package com.microsoft.migration.assets.worker.service;
 
-import com.microsoft.migration.assets.worker.repository.ImageMetadataRepository;
+import com.microsoft.migration.assets.common.repository.ImageMetadataRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -17,14 +17,15 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Collections;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-public class S3FileProcessingServiceTest {
+public class CloudFileProcessingServiceTest {
 
     @Mock
     private S3Client s3Client;
@@ -33,7 +34,7 @@ public class S3FileProcessingServiceTest {
     private ImageMetadataRepository imageMetadataRepository;
 
     @InjectMocks
-    private S3FileProcessingService s3FileProcessingService;
+    private CloudFileProcessingService cloudFileProcessingService;
 
     private final String bucketName = "test-bucket";
     private final String testKey = "test-image.jpg";
@@ -41,16 +42,16 @@ public class S3FileProcessingServiceTest {
 
     @BeforeEach
     void setUp() {
-        ReflectionTestUtils.setField(s3FileProcessingService, "bucketName", bucketName);
+        ReflectionTestUtils.setField(cloudFileProcessingService, "bucketName", bucketName);
     }
 
     @Test
     void getStorageTypeReturnsS3() {
         // Act
-        String result = s3FileProcessingService.getStorageType();
+        String result = cloudFileProcessingService.getStorageType();
 
         // Assert
-        assertEquals("s3", result);
+        assertEquals("cloud", result);
     }
 
     @Test
@@ -63,7 +64,7 @@ public class S3FileProcessingServiceTest {
         when(s3Client.getObject(any(GetObjectRequest.class))).thenReturn(mockResponse);
 
         // Act
-        s3FileProcessingService.downloadOriginal(testKey, tempFile);
+        cloudFileProcessingService.downloadOriginal(testKey, tempFile);
 
         // Assert
         verify(s3Client).getObject(any(GetObjectRequest.class));
@@ -76,10 +77,10 @@ public class S3FileProcessingServiceTest {
     void uploadThumbnailPutsFileToS3() throws Exception {
         // Arrange
         Path tempFile = Files.createTempFile("thumbnail-", ".tmp");
-        when(imageMetadataRepository.findAll()).thenReturn(Collections.emptyList());
+        when(imageMetadataRepository.findByStorageKey(anyString())).thenReturn(Optional.empty());
 
         // Act
-        s3FileProcessingService.uploadThumbnail(tempFile, thumbnailKey, "image/jpeg");
+        cloudFileProcessingService.uploadThumbnail(tempFile, thumbnailKey, "image/jpeg");
 
         // Assert
         verify(s3Client).putObject(any(PutObjectRequest.class), any(RequestBody.class));
@@ -92,7 +93,7 @@ public class S3FileProcessingServiceTest {
     void testExtractOriginalKey() throws Exception {
         // Use reflection to test private method
         String result = (String) ReflectionTestUtils.invokeMethod(
-                s3FileProcessingService,
+                cloudFileProcessingService,
                 "extractOriginalKey",
                 "image_thumbnail.jpg");
 

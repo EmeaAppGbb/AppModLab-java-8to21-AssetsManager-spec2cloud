@@ -1,20 +1,21 @@
 package com.microsoft.migration.assets.config;
 
 import com.microsoft.migration.assets.constants.StorageConstants;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.CacheControl;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
-import org.springframework.web.servlet.config.annotation.WebMvcConfigurerAdapter;
-import org.springframework.web.servlet.handler.HandlerInterceptorAdapter;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import org.springframework.web.servlet.HandlerInterceptor;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.util.concurrent.TimeUnit;
 
+@Slf4j
 @Configuration
-@SuppressWarnings("deprecation")
-public class WebMvcConfig extends WebMvcConfigurerAdapter {
+public class WebMvcConfig implements WebMvcConfigurer {
 
     /**
      * Resource handlers with caching for static content.
@@ -46,15 +47,17 @@ public class WebMvcConfig extends WebMvcConfigurerAdapter {
      * Custom interceptor using HandlerInterceptorAdapter.
      * This interceptor logs file operations for monitoring and debugging purposes.
      */
-    private static class FileOperationLoggingInterceptor extends HandlerInterceptorAdapter {
+    private static class FileOperationLoggingInterceptor implements HandlerInterceptor {
         
+        private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(FileOperationLoggingInterceptor.class);
+
         @Override
         public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
             long startTime = System.currentTimeMillis();
             request.setAttribute("startTime", startTime);
             
             String operation = determineFileOperation(request);
-            System.out.printf("[FILE-OP] %s %s - %s started at %d%n", 
+            log.info("[FILE-OP] {} {} - {} started at {}", 
                     request.getMethod(), request.getRequestURI(), operation, startTime);
             
             return true;
@@ -68,11 +71,11 @@ public class WebMvcConfig extends WebMvcConfigurerAdapter {
             String operation = determineFileOperation(request);
             
             if (ex != null) {
-                System.out.printf("[FILE-OP] %s %s - %s FAILED in %d ms (Status: %d, Error: %s)%n", 
+                log.error("[FILE-OP] {} {} - {} FAILED in {} ms (Status: {}, Error: {})", 
                         request.getMethod(), request.getRequestURI(), operation, duration, 
                         response.getStatus(), ex.getMessage());
             } else {
-                System.out.printf("[FILE-OP] %s %s - %s completed in %d ms (Status: %d)%n", 
+                log.info("[FILE-OP] {} {} - {} completed in {} ms (Status: {})", 
                         request.getMethod(), request.getRequestURI(), operation, duration, 
                         response.getStatus());
             }

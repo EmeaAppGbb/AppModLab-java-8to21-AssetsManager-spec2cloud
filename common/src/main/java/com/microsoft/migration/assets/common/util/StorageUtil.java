@@ -1,6 +1,9 @@
-package com.microsoft.migration.assets.worker.util;
+package com.microsoft.migration.assets.common.util;
 
-public class StorageUtil {
+public final class StorageUtil {
+
+    private StorageUtil() {}
+
     /**
      * Get the thumbnail key for a given key
      */

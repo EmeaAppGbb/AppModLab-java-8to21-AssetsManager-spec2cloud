@@ -9,7 +9,7 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 
 @Configuration
-public class AwsS3Config {
+public class CloudStorageConfig {
     @Value("${aws.accessKeyId}")
     private String accessKeyId;
 

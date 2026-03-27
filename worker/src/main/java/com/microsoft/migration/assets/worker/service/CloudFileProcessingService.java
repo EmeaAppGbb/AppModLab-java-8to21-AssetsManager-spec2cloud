@@ -1,6 +1,6 @@
 package com.microsoft.migration.assets.worker.service;
 
-import com.microsoft.migration.assets.worker.repository.ImageMetadataRepository;
+import com.microsoft.migration.assets.common.repository.ImageMetadataRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
@@ -19,7 +19,7 @@ import java.nio.file.StandardCopyOption;
 @Service
 @Profile("!dev")
 @RequiredArgsConstructor
-public class S3FileProcessingService extends AbstractFileProcessingService {
+public class CloudFileProcessingService extends AbstractFileProcessingService {
     private final S3Client s3Client;
     private final ImageMetadataRepository imageMetadataRepository;
     
@@ -52,19 +52,16 @@ public class S3FileProcessingService extends AbstractFileProcessingService {
         String originalKey = extractOriginalKey(key);
         
         // Find and update metadata
-        imageMetadataRepository.findAll().stream()
-            .filter(metadata -> metadata.getS3Key().equals(originalKey))
-            .findFirst()
-            .ifPresent(metadata -> {
-                metadata.setThumbnailKey(key);
-                metadata.setThumbnailUrl(generateUrl(key));
-                imageMetadataRepository.save(metadata);
-            });
+        imageMetadataRepository.findByStorageKey(originalKey).ifPresent(metadata -> {
+            metadata.setThumbnailKey(key);
+            metadata.setThumbnailUrl(generateUrl(key));
+            imageMetadataRepository.save(metadata);
+        });
     }
 
     @Override
     public String getStorageType() {
-        return "s3";
+        return "cloud";
     }
 
     @Override

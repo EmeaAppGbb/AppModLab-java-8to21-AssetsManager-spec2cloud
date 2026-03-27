@@ -1,9 +1,9 @@
 package com.microsoft.migration.assets.service;
 
-import com.microsoft.migration.assets.model.ImageMetadata;
-import com.microsoft.migration.assets.model.ImageProcessingMessage;
-import com.microsoft.migration.assets.model.S3StorageItem;
-import com.microsoft.migration.assets.repository.ImageMetadataRepository;
+import com.microsoft.migration.assets.common.model.ImageMetadata;
+import com.microsoft.migration.assets.common.model.ImageProcessingMessage;
+import com.microsoft.migration.assets.model.StorageItem;
+import com.microsoft.migration.assets.common.repository.ImageMetadataRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -26,7 +27,7 @@ import static com.microsoft.migration.assets.config.RabbitConfig.IMAGE_PROCESSIN
 @Service
 @RequiredArgsConstructor
 @Profile("!dev") // Active when not in dev profile
-public class AwsS3Service implements StorageService {
+public class CloudStorageService implements StorageService {
 
     private final S3Client s3Client;
     private final RabbitTemplate rabbitTemplate;
@@ -36,23 +37,25 @@ public class AwsS3Service implements StorageService {
     private String bucketName;
 
     @Override
-    public List<S3StorageItem> listObjects() {
+    public List<StorageItem> listObjects() {
         ListObjectsV2Request request = ListObjectsV2Request.builder()
                 .bucket(bucketName)
                 .build();
 
         ListObjectsV2Response response = s3Client.listObjectsV2(request);
 
+        Map<String, ImageMetadata> metadataMap = imageMetadataRepository.findAll().stream()
+                .collect(Collectors.toMap(ImageMetadata::getStorageKey, m -> m, (a, b) -> a));
+
         return response.contents().stream()
                 .map(s3Object -> {
                     // Try to get metadata for upload time
-                    Instant uploadedAt = imageMetadataRepository.findAll().stream()
-                            .filter(metadata -> metadata.getS3Key().equals(s3Object.key()))
-                            .map(metadata -> metadata.getUploadedAt().atZone(java.time.ZoneId.systemDefault()).toInstant())
-                            .findFirst()
-                            .orElse(s3Object.lastModified()); // fallback to lastModified if metadata not found
+                    ImageMetadata meta = metadataMap.get(s3Object.key());
+                    Instant uploadedAt = meta != null
+                            ? meta.getUploadedAt().atZone(java.time.ZoneId.systemDefault()).toInstant()
+                            : s3Object.lastModified();
 
-                    return new S3StorageItem(
+                    return new StorageItem(
                             s3Object.key(),
                             extractFilename(s3Object.key()),
                             s3Object.size(),
@@ -90,8 +93,8 @@ public class AwsS3Service implements StorageService {
         metadata.setFilename(file.getOriginalFilename());
         metadata.setContentType(file.getContentType());
         metadata.setSize(file.getSize());
-        metadata.setS3Key(key);
-        metadata.setS3Url(generateUrl(key));
+        metadata.setStorageKey(key);
+        metadata.setStorageUrl(generateUrl(key));
 
         imageMetadataRepository.save(metadata);
     }
@@ -128,15 +131,12 @@ public class AwsS3Service implements StorageService {
         }
 
         // Delete metadata from database
-        imageMetadataRepository.findAll().stream()
-                .filter(metadata -> metadata.getS3Key().equals(key))
-                .findFirst()
-                .ifPresent(metadata -> imageMetadataRepository.delete(metadata));
+        imageMetadataRepository.findByStorageKey(key).ifPresent(imageMetadataRepository::delete);
     }
 
     @Override
     public String getStorageType() {
-        return "s3";
+        return "cloud";
     }
 
     private String extractFilename(String key) {

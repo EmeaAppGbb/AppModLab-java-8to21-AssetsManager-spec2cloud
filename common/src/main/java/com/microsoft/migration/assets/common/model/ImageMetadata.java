@@ -1,6 +1,6 @@
-package com.microsoft.migration.assets.model;
+package com.microsoft.migration.assets.common.model;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -15,8 +15,10 @@ public class ImageMetadata {
     private String filename;
     private String contentType;
     private Long size;
-    private String s3Key;
-    private String s3Url;
+    @Column(name = "s3_key")
+    private String storageKey;
+    @Column(name = "s3_url")
+    private String storageUrl;
     private String thumbnailKey;
     private String thumbnailUrl;
     private LocalDateTime uploadedAt;

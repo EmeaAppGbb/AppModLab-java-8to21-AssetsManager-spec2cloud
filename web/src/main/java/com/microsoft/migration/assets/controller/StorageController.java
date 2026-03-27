@@ -1,7 +1,7 @@
 package com.microsoft.migration.assets.controller;
 
 import com.microsoft.migration.assets.constants.StorageConstants;
-import com.microsoft.migration.assets.model.S3StorageItem;
+import com.microsoft.migration.assets.model.StorageItem;
 import com.microsoft.migration.assets.service.StorageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.InputStreamResource;
@@ -22,13 +22,13 @@ import java.util.Optional;
 @Controller
 @RequestMapping("/" + StorageConstants.STORAGE_PATH)
 @RequiredArgsConstructor
-public class S3Controller {
+public class StorageController {
 
     private final StorageService storageService;
 
     @GetMapping
     public String listObjects(Model model) {
-        List<S3StorageItem> objects = storageService.listObjects();
+        List<StorageItem> objects = storageService.listObjects();
         model.addAttribute("objects", objects);
         return "list";
     }
@@ -57,9 +57,10 @@ public class S3Controller {
     
     @GetMapping("/view-page/{key}")
     public String viewObjectPage(@PathVariable String key, Model model, RedirectAttributes redirectAttributes) {
+        validateKey(key);
         try {
             // Find the object in the list of objects
-            Optional<S3StorageItem> foundObject = storageService.listObjects().stream()
+            Optional<StorageItem> foundObject = storageService.listObjects().stream()
                     .filter(obj -> obj.getKey().equals(key))
                     .findFirst();
             
@@ -79,6 +80,11 @@ public class S3Controller {
     @GetMapping("/view/{key}")
     public ResponseEntity<InputStreamResource> viewObject(@PathVariable String key) {
         try {
+            validateKey(key);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        }
+        try {
             InputStream inputStream = storageService.getObject(key);
             
             HttpHeaders headers = new HttpHeaders();
@@ -95,12 +101,28 @@ public class S3Controller {
 
     @PostMapping("/delete/{key}")
     public String deleteObject(@PathVariable String key, RedirectAttributes redirectAttributes) {
+        validateKey(key);
         try {
             storageService.deleteObject(key);
             redirectAttributes.addFlashAttribute("success", "File deleted successfully");
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", "Failed to delete file: " + e.getMessage());
         }
+        return "redirect:/" + StorageConstants.STORAGE_PATH;
+    }
+
+    private void validateKey(String key) {
+        if (key == null || key.isBlank()) {
+            throw new IllegalArgumentException("Storage key must not be empty");
+        }
+        if (key.contains("..") || key.contains("/") || key.contains("\\")) {
+            throw new IllegalArgumentException("Storage key contains invalid characters");
+        }
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public String handleInvalidKey(IllegalArgumentException e, RedirectAttributes redirectAttributes) {
+        redirectAttributes.addFlashAttribute("error", e.getMessage());
         return "redirect:/" + StorageConstants.STORAGE_PATH;
     }
 }

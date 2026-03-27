@@ -1,4 +1,4 @@
-package com.microsoft.migration.assets.model;
+package com.microsoft.migration.assets.common.model;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -10,6 +10,6 @@ import lombok.NoArgsConstructor;
 public class ImageProcessingMessage {
     private String key;
     private String contentType;
-    private String storageType; // "s3" or "local"
+    private String storageType; // "cloud" or "local"
     private long size;
 }

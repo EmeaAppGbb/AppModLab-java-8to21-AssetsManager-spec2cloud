@@ -1,21 +1,19 @@
 package com.microsoft.migration.assets.worker.service;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
-import javax.annotation.PostConstruct;
+import jakarta.annotation.PostConstruct;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@Slf4j
 @Service
 @Profile("dev")
 public class LocalFileProcessingService extends AbstractFileProcessingService {
-    
-    private static final Logger logger = LoggerFactory.getLogger(LocalFileProcessingService.class);
     
     @Value("${local.storage.directory:../storage}")
     private String storageDirectory;
@@ -25,11 +23,11 @@ public class LocalFileProcessingService extends AbstractFileProcessingService {
     @PostConstruct
     public void init() throws Exception {
         rootLocation = Paths.get(storageDirectory).toAbsolutePath().normalize();
-        logger.info("Local storage directory: {}", rootLocation);
+        log.info("Local storage directory: {}", rootLocation);
         
         if (!Files.exists(rootLocation)) {
             Files.createDirectories(rootLocation);
-            logger.info("Created local storage directory");
+            log.info("Created local storage directory");
         }
     }
 
