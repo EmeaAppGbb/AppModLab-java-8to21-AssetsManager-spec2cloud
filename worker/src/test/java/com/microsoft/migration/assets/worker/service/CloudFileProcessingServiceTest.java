@@ -16,6 +16,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -89,5 +90,24 @@ public class CloudFileProcessingServiceTest {
 
         // Assert
         assertEquals("image.jpg", result);
+    }
+
+    @Test
+    void downloadOriginal_blobNotFound_throwsException() {
+        // Arrange
+        BlobClient mockBlobClient = mock(BlobClient.class);
+        when(blobContainerClient.getBlobClient(testKey)).thenReturn(mockBlobClient);
+        doThrow(new com.azure.storage.blob.models.BlobStorageException(
+                "BlobNotFound", null, null))
+                .when(mockBlobClient).downloadToFile(anyString(), eq(true));
+
+        Path destination = Path.of("nonexistent-download.tmp");
+
+        // Act & Assert
+        org.junit.jupiter.api.Assertions.assertThrows(
+                com.azure.storage.blob.models.BlobStorageException.class,
+                () -> cloudFileProcessingService.downloadOriginal(testKey, destination));
+
+        verify(mockBlobClient).downloadToFile(destination.toString(), true);
     }
 }
