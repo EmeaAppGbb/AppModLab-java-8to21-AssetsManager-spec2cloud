@@ -9,6 +9,7 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -68,6 +69,7 @@ public class CloudStorageService implements StorageService {
     }
 
     @Override
+    @Transactional
     public void uploadObject(MultipartFile file) throws IOException {
         String key = generateKey(file.getOriginalFilename());
         PutObjectRequest request = PutObjectRequest.builder()
@@ -110,6 +112,7 @@ public class CloudStorageService implements StorageService {
     }
 
     @Override
+    @Transactional
     public void deleteObject(String key) throws IOException {
         // Delete both original and thumbnail if it exists
         DeleteObjectRequest request = DeleteObjectRequest.builder()
