@@ -34,6 +34,7 @@ Assets Manager is a web-based image asset management application that enables us
 | F-008 | Image Metadata Persistence | JPA entity `ImageMetadata` stored in PostgreSQL with fields: id, filename, contentType, size, s3Key, s3Url, thumbnailKey, thumbnailUrl, uploadedAt, lastModified. Auto-timestamps via `@PrePersist`/`@PreUpdate` lifecycle callbacks. Repository provides standard CRUD via Spring Data `JpaRepository`. | P1 (High) | — |
 | F-009 | File Operation Logging | `FileOperationLoggingInterceptor` in `WebMvcConfig` logs all requests to `/storage/**` (excluding `/storage/view/**`). Captures: HTTP method, URI, operation type (FILE_UPLOAD, FILE_DELETE, FILE_DOWNLOAD, FILE_VIEW_PAGE, FILE_LIST), start time, duration in ms, response status, and error messages. | P2 (Medium) | — |
 | F-010 | Backup Message Processor | Optional RabbitMQ consumer (`BackupMessageProcessor`) activated only when the `backup` Spring profile is active. Listens on the same `image-processing` queue for monitoring/logging purposes. Acknowledges messages after logging metadata. | P3 (Low) | F-006 |
+| F-011 | Folder/Album Organization | Allow users to create named folders (albums) to organize images. Images can be assigned to a folder during upload or moved between folders. Gallery view shows folder navigation with breadcrumbs. Folders support nesting (max 5 levels), rename, and delete (images moved to root). Folder structure is metadata-only — blob storage keys remain flat. | P1 (High) | F-001, F-002, F-008 |
 
 ## Non-Functional Requirements
 
@@ -79,7 +80,6 @@ The following capabilities are **not implemented** in the current codebase:
 - **Multi-tenant support** — No workspace or organization concept; single shared storage
 - **Image editing or transformation** — Only thumbnail generation; no crop, resize, rotate, or filter tools
 - **Search and filtering** — No search bar, tag system, or filter controls in the gallery
-- **Folder/directory organization** — All images are stored flat; no folder hierarchy
 - **Batch operations** — No multi-select, bulk delete, or bulk download
 - **API layer** — No REST/GraphQL API for programmatic access; only server-rendered HTML
 - **Notifications** — No email, webhook, or push notification on upload completion or errors
