@@ -1,15 +1,24 @@
 package com.microsoft.migration.assets.common.model;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-public class ImageProcessingMessage {
-    private String key;
-    private String contentType;
-    private String storageType; // "cloud" or "local"
-    private long size;
+public record ImageProcessingMessage(
+    String key,
+    String contentType,
+    String storageType,
+    long size
+) {
+    @JsonCreator
+    public ImageProcessingMessage(
+        @JsonProperty("key") String key,
+        @JsonProperty("contentType") String contentType,
+        @JsonProperty("storageType") String storageType,
+        @JsonProperty("size") long size
+    ) {
+        this.key = key;
+        this.contentType = contentType;
+        this.storageType = storageType;
+        this.size = size;
+    }
 }

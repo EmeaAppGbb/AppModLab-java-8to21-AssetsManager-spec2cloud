@@ -68,7 +68,7 @@ public class StorageController {
         try {
             // Find the object in the list of objects
             Optional<StorageItem> foundObject = storageService.listObjects().stream()
-                    .filter(obj -> obj.getKey().equals(key))
+                    .filter(obj -> obj.key().equals(key))
                     .findFirst();
             
             if (foundObject.isPresent()) {

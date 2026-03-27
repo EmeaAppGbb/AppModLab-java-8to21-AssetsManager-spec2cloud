@@ -31,36 +31,36 @@ public abstract class AbstractFileProcessingService implements FileProcessor {
         Path thumbnailFile = null;
 
         try {
-            log.info("Processing image: {}", message.getKey());
+            log.info("Processing image: {}", message.key());
 
             tempDir = Files.createTempDirectory("image-processing");
-            originalFile = tempDir.resolve("original" + StorageUtil.getExtension(message.getKey()));
-            thumbnailFile = tempDir.resolve("thumbnail" + StorageUtil.getExtension(message.getKey()));
+            originalFile = tempDir.resolve("original" + StorageUtil.getExtension(message.key()));
+            thumbnailFile = tempDir.resolve("thumbnail" + StorageUtil.getExtension(message.key()));
 
             // Only process if message matches our storage type
-            if (message.getStorageType().equals(getStorageType())) {
+            if (message.storageType().equals(getStorageType())) {
                 // Download original file
-                downloadOriginal(message.getKey(), originalFile);
+                downloadOriginal(message.key(), originalFile);
 
                 // Generate thumbnail
                 generateThumbnail(originalFile, thumbnailFile);
 
                 // Upload thumbnail
-                String thumbnailKey = StorageUtil.getThumbnailKey(message.getKey());
-                uploadThumbnail(thumbnailFile, thumbnailKey, message.getContentType());
+                String thumbnailKey = StorageUtil.getThumbnailKey(message.key());
+                uploadThumbnail(thumbnailFile, thumbnailKey, message.contentType());
 
-                log.info("Successfully processed image: {}", message.getKey());
+                log.info("Successfully processed image: {}", message.key());
 
                 // Mark processing as successful
                 processingSuccess = true;
             } else {
                 log.debug("Skipping message with storage type: {} (we handle {})",
-                    message.getStorageType(), getStorageType());
+                    message.storageType(), getStorageType());
                 // This is not an error, just not for this service, so we can acknowledge
                 processingSuccess = true;
             }
         } catch (Exception e) {
-            log.error("Failed to process image: {}", message.getKey(), e);
+            log.error("Failed to process image: {}", message.key(), e);
         } finally {
             try {
                 // Cleanup temporary files
@@ -77,15 +77,15 @@ public abstract class AbstractFileProcessingService implements FileProcessor {
                 if (processingSuccess) {
                     // Acknowledge the message if processing was successful
                     channel.basicAck(deliveryTag, false);
-                    log.debug("Message acknowledged for: {}", message.getKey());
+                    log.debug("Message acknowledged for: {}", message.key());
                 } else {
                     // Reject the message with requeue=false to trigger dead letter exchange
                     // This will route the message to the retry queue with delay
                     channel.basicNack(deliveryTag, false, false);
-                    log.debug("Message rejected and sent to dead letter exchange for delayed retry: {}", message.getKey());
+                    log.debug("Message rejected and sent to dead letter exchange for delayed retry: {}", message.key());
                 }
             } catch (IOException e) {
-                log.error("Error handling RabbitMQ acknowledgment for: {}", message.getKey(), e);
+                log.error("Error handling RabbitMQ acknowledgment for: {}", message.key(), e);
             }
         }
     }

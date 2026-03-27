@@ -84,20 +84,19 @@ public class WebMvcConfig implements WebMvcConfigurer {
         private String determineFileOperation(HttpServletRequest request) {
             String uri = request.getRequestURI();
             String method = request.getMethod();
-            
-            if (uri.contains("/upload")) {
-                return "FILE_UPLOAD";
-            } else if (uri.contains("/delete/")) {
-                return "FILE_DELETE";
-            } else if (uri.contains("/view/")) {
-                return "FILE_DOWNLOAD";
-            } else if (uri.contains("/view-page/")) {
-                return "FILE_VIEW_PAGE";
-            } else if ("GET".equals(method) && uri.equals("/" + StorageConstants.STORAGE_PATH)) {
-                return "FILE_LIST";
-            } else {
-                return "FILE_OPERATION";
-            }
+            String basePath = "/" + StorageConstants.STORAGE_PATH;
+            String subPath = uri.length() > basePath.length()
+                    ? uri.substring(basePath.length() + 1).split("/")[0]
+                    : "";
+
+            return switch (subPath) {
+                case "upload"    -> "FILE_UPLOAD";
+                case "delete"    -> "FILE_DELETE";
+                case "view"      -> "FILE_DOWNLOAD";
+                case "view-page" -> "FILE_VIEW_PAGE";
+                case ""          -> "GET".equals(method) ? "FILE_LIST" : "FILE_OPERATION";
+                default          -> "FILE_OPERATION";
+            };
         }
     }
 }
