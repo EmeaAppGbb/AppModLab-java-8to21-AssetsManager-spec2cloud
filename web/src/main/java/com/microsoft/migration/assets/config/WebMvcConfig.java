@@ -51,14 +51,25 @@ public class WebMvcConfig implements WebMvcConfigurer {
         
         private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(FileOperationLoggingInterceptor.class);
 
+        private String maskUri(String uri) {
+            int lastSlash = uri.lastIndexOf('/');
+            if (lastSlash > 0 && lastSlash < uri.length() - 1) {
+                String key = uri.substring(lastSlash + 1);
+                if (key.length() > 8) {
+                    return uri.substring(0, lastSlash + 1) + key.substring(0, 8) + "...";
+                }
+            }
+            return uri;
+        }
+
         @Override
         public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
             long startTime = System.currentTimeMillis();
             request.setAttribute("startTime", startTime);
             
             String operation = determineFileOperation(request);
-            log.info("[FILE-OP] {} {} - {} started at {}", 
-                    request.getMethod(), request.getRequestURI(), operation, startTime);
+            log.info("[FILE-OP] {} {} - {} started", 
+                    request.getMethod(), maskUri(request.getRequestURI()), operation);
             
             return true;
         }
@@ -71,12 +82,12 @@ public class WebMvcConfig implements WebMvcConfigurer {
             String operation = determineFileOperation(request);
             
             if (ex != null) {
-                log.error("[FILE-OP] {} {} - {} FAILED in {} ms (Status: {}, Error: {})", 
-                        request.getMethod(), request.getRequestURI(), operation, duration, 
-                        response.getStatus(), ex.getMessage());
+                log.error("[FILE-OP] {} {} - {} FAILED in {} ms (Status: {})", 
+                        request.getMethod(), maskUri(request.getRequestURI()), operation, duration, 
+                        response.getStatus());
             } else {
                 log.info("[FILE-OP] {} {} - {} completed in {} ms (Status: {})", 
-                        request.getMethod(), request.getRequestURI(), operation, duration, 
+                        request.getMethod(), maskUri(request.getRequestURI()), operation, duration, 
                         response.getStatus());
             }
         }
