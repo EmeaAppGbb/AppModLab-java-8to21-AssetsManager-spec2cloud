@@ -1,6 +1,7 @@
 package com.microsoft.migration.assets.controller;
 
 import com.microsoft.migration.assets.model.StorageItem;
+import com.microsoft.migration.assets.service.FolderService;
 import com.microsoft.migration.assets.service.StorageService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -29,6 +30,9 @@ class StorageControllerTest {
     @Mock
     private StorageService storageService;
 
+    @Mock
+    private FolderService folderService;
+
     @InjectMocks
     private StorageController storageController;
 
@@ -47,7 +51,7 @@ class StorageControllerTest {
     @Test
     void listObjects_returnsListView() throws Exception {
         StorageItem item = new StorageItem("key1", "image.jpg", 1024L,
-                Instant.now(), Instant.now(), "/storage/view/key1");
+                Instant.now(), Instant.now(), "/storage/view/key1", null);
         when(storageService.listObjects()).thenReturn(List.of(item));
 
         mockMvc.perform(get("/storage"))
@@ -75,7 +79,7 @@ class StorageControllerTest {
                 .andExpect(redirectedUrl("/storage"))
                 .andExpect(flash().attribute("success", "File uploaded successfully"));
 
-        verify(storageService).uploadObject(file);
+        verify(storageService).uploadObject(file, null);
     }
 
     @Test
@@ -88,7 +92,7 @@ class StorageControllerTest {
                 .andExpect(redirectedUrl("/storage/upload"))
                 .andExpect(flash().attribute("error", "Please select a file to upload"));
 
-        verify(storageService, never()).uploadObject(any());
+        verify(storageService, never()).uploadObject(any(), any());
     }
 
     @Test

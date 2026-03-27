@@ -21,6 +21,8 @@ public class ImageMetadata {
     private String storageUrl;
     private String thumbnailKey;
     private String thumbnailUrl;
+    @Column(name = "folder_id")
+    private Long folderId;
     private LocalDateTime uploadedAt;
     private LocalDateTime lastModified;
 

@@ -8,5 +8,6 @@ public record StorageItem(
     long size,
     Instant lastModified,
     Instant uploadedAt,
-    String url
+    String url,
+    Long folderId
 ) {}

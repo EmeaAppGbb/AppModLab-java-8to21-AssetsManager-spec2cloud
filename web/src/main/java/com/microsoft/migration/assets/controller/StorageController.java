@@ -1,7 +1,9 @@
 package com.microsoft.migration.assets.controller;
 
+import com.microsoft.migration.assets.common.model.Folder;
 import com.microsoft.migration.assets.constants.StorageConstants;
 import com.microsoft.migration.assets.model.StorageItem;
+import com.microsoft.migration.assets.service.FolderService;
 import com.microsoft.migration.assets.service.StorageService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -20,6 +22,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 @Slf4j
@@ -30,37 +33,72 @@ import java.util.Optional;
 public class StorageController {
 
     private final StorageService storageService;
+    private final FolderService folderService;
 
     @GetMapping
     @Operation(summary = "List all images")
-    public String listObjects(Model model) {
-        List<StorageItem> objects = storageService.listObjects();
+    public String listObjects(@RequestParam(required = false) Long folderId, Model model) {
+        List<StorageItem> allObjects = storageService.listObjects();
+        List<StorageItem> objects = allObjects.stream()
+                .filter(item -> Objects.equals(item.folderId(), folderId))
+                .toList();
+
+        List<Folder> folders = folderService.getFoldersAtLevel(folderId);
         model.addAttribute("objects", objects);
+        model.addAttribute("folders", folders);
+        model.addAttribute("allFolders", folderService.getAllFolders());
+        model.addAttribute("currentFolderId", folderId);
+
+        if (folderId != null) {
+            Folder currentFolder = folderService.getFolder(folderId).orElse(null);
+            model.addAttribute("currentFolder", currentFolder);
+            model.addAttribute("breadcrumbs", folderService.getBreadcrumbs(folderId));
+        }
+
         return "list";
     }
 
     @GetMapping("/upload")
     @Operation(summary = "Show upload form")
-    public String uploadForm() {
+    public String uploadForm(@RequestParam(required = false) Long folderId, Model model) {
+        model.addAttribute("currentFolderId", folderId);
+        if (folderId != null) {
+            Folder currentFolder = folderService.getFolder(folderId).orElse(null);
+            model.addAttribute("currentFolder", currentFolder);
+            model.addAttribute("breadcrumbs", folderService.getBreadcrumbs(folderId));
+        }
         return "upload";
     }
 
     @PostMapping("/upload")
     @Operation(summary = "Upload an image")
-    public String uploadObject(@RequestParam("file") MultipartFile file, RedirectAttributes redirectAttributes) {
+    public String uploadObject(@RequestParam("file") MultipartFile file,
+                              @RequestParam(required = false) Long folderId,
+                              RedirectAttributes redirectAttributes) {
         try {
             if (file.isEmpty()) {
                 redirectAttributes.addFlashAttribute("error", "Please select a file to upload");
-                return "redirect:/" + StorageConstants.STORAGE_PATH + "/upload";
+                String uploadUrl = "/" + StorageConstants.STORAGE_PATH + "/upload";
+                if (folderId != null) {
+                    uploadUrl += "?folderId=" + folderId;
+                }
+                return "redirect:" + uploadUrl;
             }
 
-            storageService.uploadObject(file);
+            storageService.uploadObject(file, folderId);
             redirectAttributes.addFlashAttribute("success", "File uploaded successfully");
+            if (folderId != null) {
+                return "redirect:/" + StorageConstants.STORAGE_PATH + "?folderId=" + folderId;
+            }
             return "redirect:/" + StorageConstants.STORAGE_PATH;
         } catch (IOException e) {
             log.error("File upload failed", e);
             redirectAttributes.addFlashAttribute("error", "Failed to upload file. Please try again.");
-            return "redirect:/" + StorageConstants.STORAGE_PATH + "/upload";
+            String uploadUrl = "/" + StorageConstants.STORAGE_PATH + "/upload";
+            if (folderId != null) {
+                uploadUrl += "?folderId=" + folderId;
+            }
+            return "redirect:" + uploadUrl;
         }
     }
     
@@ -69,13 +107,14 @@ public class StorageController {
     public String viewObjectPage(@PathVariable String key, Model model, RedirectAttributes redirectAttributes) {
         validateKey(key);
         try {
-            // Find the object in the list of objects
             Optional<StorageItem> foundObject = storageService.listObjects().stream()
                     .filter(obj -> obj.key().equals(key))
                     .findFirst();
             
             if (foundObject.isPresent()) {
-                model.addAttribute("object", foundObject.get());
+                StorageItem object = foundObject.get();
+                model.addAttribute("object", object);
+                model.addAttribute("allFolders", folderService.getAllFolders());
                 return "view";
             } else {
                 redirectAttributes.addFlashAttribute("error", "Image not found");
@@ -100,7 +139,6 @@ public class StorageController {
             InputStream inputStream = storageService.getObject(key);
             
             HttpHeaders headers = new HttpHeaders();
-            // Use a generic content type if we don't know the exact type
             headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
             
             return ResponseEntity.ok()
@@ -113,7 +151,9 @@ public class StorageController {
 
     @PostMapping("/delete/{key}")
     @Operation(summary = "Delete an image")
-    public String deleteObject(@PathVariable String key, RedirectAttributes redirectAttributes) {
+    public String deleteObject(@PathVariable String key,
+                              @RequestParam(required = false) Long folderId,
+                              RedirectAttributes redirectAttributes) {
         validateKey(key);
         try {
             storageService.deleteObject(key);
@@ -122,6 +162,29 @@ public class StorageController {
             log.error("File deletion failed", e);
             redirectAttributes.addFlashAttribute("error", "Failed to delete file. Please try again.");
         }
+        if (folderId != null) {
+            return "redirect:/" + StorageConstants.STORAGE_PATH + "?folderId=" + folderId;
+        }
+        return "redirect:/" + StorageConstants.STORAGE_PATH;
+    }
+
+    @PostMapping("/move/{key}")
+    @Operation(summary = "Move an image to a folder")
+    public String moveImage(@PathVariable String key,
+                           @RequestParam(required = false) Long targetFolderId,
+                           @RequestParam(required = false) Long fromFolderId,
+                           RedirectAttributes redirectAttributes) {
+        validateKey(key);
+        try {
+            folderService.moveImageByStorageKey(key, targetFolderId);
+            redirectAttributes.addFlashAttribute("success", "Image moved successfully");
+        } catch (Exception e) {
+            log.error("Failed to move image", e);
+            redirectAttributes.addFlashAttribute("error", "Failed to move image: " + e.getMessage());
+        }
+        if (fromFolderId != null) {
+            return "redirect:/" + StorageConstants.STORAGE_PATH + "?folderId=" + fromFolderId;
+        }
         return "redirect:/" + StorageConstants.STORAGE_PATH;
     }
 
@@ -129,12 +192,10 @@ public class StorageController {
         if (key == null || key.isBlank()) {
             throw new IllegalArgumentException("Storage key must not be empty");
         }
-        // Decode URL-encoded characters before validation
         String decoded = java.net.URLDecoder.decode(key, java.nio.charset.StandardCharsets.UTF_8);
         if (decoded.contains("..") || decoded.contains("/") || decoded.contains("\\")) {
             throw new IllegalArgumentException("Storage key contains invalid characters");
         }
-        // Reject control characters and null bytes
         if (decoded.chars().anyMatch(c -> c < 0x20 || c == 0x7F)) {
             throw new IllegalArgumentException("Storage key contains invalid characters");
         }

@@ -25,6 +25,13 @@ public interface StorageService {
      * Upload file to storage
      */
     void uploadObject(MultipartFile file) throws IOException;
+
+    /**
+     * Upload file to storage with folder assignment
+     */
+    default void uploadObject(MultipartFile file, Long folderId) throws IOException {
+        uploadObject(file);
+    }
     
     /**
      * Get object from storage by key

@@ -63,7 +63,8 @@ public class LocalFileStorageService implements StorageService {
                             Files.size(path),
                             attrs.lastModifiedTime().toInstant(),
                             attrs.creationTime().toInstant(),
-                            generateUrl(filename)
+                            generateUrl(filename),
+                            null
                         );
                     } catch (IOException e) {
                         log.error("Failed to read file attributes", e);

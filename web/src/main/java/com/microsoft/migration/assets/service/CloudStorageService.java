@@ -47,13 +47,16 @@ public class CloudStorageService implements StorageService {
                             ? meta.getUploadedAt().atZone(java.time.ZoneId.systemDefault()).toInstant()
                             : lastModified;
 
+                    Long folderId = meta != null ? meta.getFolderId() : null;
+
                     return new StorageItem(
                             key,
                             extractFilename(key),
                             blobItem.getProperties().getContentLength(),
                             lastModified,
                             uploadedAt,
-                            generateUrl(key)
+                            generateUrl(key),
+                            folderId
                     );
                 })
                 .collect(Collectors.toList());
@@ -62,6 +65,12 @@ public class CloudStorageService implements StorageService {
     @Override
     @Transactional
     public void uploadObject(MultipartFile file) throws IOException {
+        uploadObject(file, null);
+    }
+
+    @Override
+    @Transactional
+    public void uploadObject(MultipartFile file, Long folderId) throws IOException {
         validateImageFile(file);
         String key = generateKey(file.getOriginalFilename());
         BlobClient blobClient = blobContainerClient.getBlobClient(key);
@@ -84,6 +93,7 @@ public class CloudStorageService implements StorageService {
         metadata.setSize(file.getSize());
         metadata.setStorageKey(key);
         metadata.setStorageUrl(generateUrl(key));
+        metadata.setFolderId(folderId);
 
         imageMetadataRepository.save(metadata);
     }
