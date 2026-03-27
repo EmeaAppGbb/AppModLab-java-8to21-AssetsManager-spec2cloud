@@ -33,13 +33,13 @@
     { "id": "ADR-005", "title": "Authentication — Form Login", "status": "accepted" }
   ],
   "securityIncrements": [
-    { "id": "sec-001", "type": "security", "tier": 2, "title": "Server-Side File Type Validation", "status": "planned" },
-    { "id": "sec-002", "type": "security", "tier": 2, "title": "Harden Path Traversal Protection", "status": "planned" },
-    { "id": "sec-003", "type": "security", "tier": 2, "title": "Sanitize Error Messages", "status": "planned" },
-    { "id": "sec-004", "type": "security", "tier": 3, "title": "Restrict Jackson Deserialization Types", "status": "planned" },
-    { "id": "sec-005", "type": "security", "tier": 3, "title": "Remove Default Credential Fallbacks", "status": "planned" },
-    { "id": "sec-006", "type": "security", "tier": 4, "title": "Sanitize Log Output", "status": "planned" },
-    { "id": "sec-007", "type": "security", "tier": 4, "title": "Enforce HTTPS for Production Storage", "status": "planned" }
+    { "id": "sec-001", "type": "security", "tier": 2, "title": "Server-Side File Type Validation", "status": "done" },
+    { "id": "sec-002", "type": "security", "tier": 2, "title": "Harden Path Traversal Protection", "status": "done" },
+    { "id": "sec-003", "type": "security", "tier": 2, "title": "Sanitize Error Messages", "status": "done" },
+    { "id": "sec-004", "type": "security", "tier": 3, "title": "Restrict Jackson Deserialization Types", "status": "done" },
+    { "id": "sec-005", "type": "security", "tier": 3, "title": "Remove Default Credential Fallbacks", "status": "done" },
+    { "id": "sec-006", "type": "security", "tier": 4, "title": "Sanitize Log Output", "status": "done" },
+    { "id": "sec-007", "type": "security", "tier": 4, "title": "Enforce HTTPS for Production Storage", "status": "done" }
   ],
   "resolvedSecurityFindings": ["S1", "S2", "S3", "S7", "S10", "S12", "S15"],
   "lastUpdated": "2026-03-27T11:04:41.275Z"
