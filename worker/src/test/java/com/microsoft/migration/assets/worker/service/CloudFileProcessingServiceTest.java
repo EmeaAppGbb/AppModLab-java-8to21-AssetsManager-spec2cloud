@@ -1,26 +1,20 @@
 package com.microsoft.migration.assets.worker.service;
 
+import com.azure.storage.blob.BlobClient;
+import com.azure.storage.blob.BlobContainerClient;
 import com.microsoft.migration.assets.common.repository.ImageMetadataRepository;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
-import software.amazon.awssdk.core.ResponseInputStream;
-import software.amazon.awssdk.core.sync.RequestBody;
-import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.GetObjectRequest;
-import software.amazon.awssdk.services.s3.model.GetObjectResponse;
-import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
@@ -28,7 +22,7 @@ import static org.mockito.Mockito.*;
 public class CloudFileProcessingServiceTest {
 
     @Mock
-    private S3Client s3Client;
+    private BlobContainerClient blobContainerClient;
 
     @Mock
     private ImageMetadataRepository imageMetadataRepository;
@@ -36,17 +30,11 @@ public class CloudFileProcessingServiceTest {
     @InjectMocks
     private CloudFileProcessingService cloudFileProcessingService;
 
-    private final String bucketName = "test-bucket";
     private final String testKey = "test-image.jpg";
     private final String thumbnailKey = "test-image_thumbnail.jpg";
 
-    @BeforeEach
-    void setUp() {
-        ReflectionTestUtils.setField(cloudFileProcessingService, "bucketName", bucketName);
-    }
-
     @Test
-    void getStorageTypeReturnsS3() {
+    void getStorageTypeReturnsCloud() {
         // Act
         String result = cloudFileProcessingService.getStorageType();
 
@@ -55,35 +43,37 @@ public class CloudFileProcessingServiceTest {
     }
 
     @Test
-    void downloadOriginalCopiesFileFromS3() throws Exception {
+    void downloadOriginalDownloadsFromBlobStorage() throws Exception {
         // Arrange
         Path tempFile = Files.createTempFile("download-", ".tmp");
-        @SuppressWarnings("unchecked")
-        ResponseInputStream<GetObjectResponse> mockResponse = mock(ResponseInputStream.class);
-
-        when(s3Client.getObject(any(GetObjectRequest.class))).thenReturn(mockResponse);
+        BlobClient mockBlobClient = mock(BlobClient.class);
+        when(blobContainerClient.getBlobClient(testKey)).thenReturn(mockBlobClient);
 
         // Act
         cloudFileProcessingService.downloadOriginal(testKey, tempFile);
 
         // Assert
-        verify(s3Client).getObject(any(GetObjectRequest.class));
+        verify(blobContainerClient).getBlobClient(testKey);
+        verify(mockBlobClient).downloadToFile(tempFile.toString(), true);
 
         // Clean up
         Files.deleteIfExists(tempFile);
     }
 
     @Test
-    void uploadThumbnailPutsFileToS3() throws Exception {
+    void uploadThumbnailUploadsToBlobStorage() throws Exception {
         // Arrange
         Path tempFile = Files.createTempFile("thumbnail-", ".tmp");
+        BlobClient mockBlobClient = mock(BlobClient.class);
+        when(blobContainerClient.getBlobClient(thumbnailKey)).thenReturn(mockBlobClient);
         when(imageMetadataRepository.findByStorageKey(anyString())).thenReturn(Optional.empty());
 
         // Act
         cloudFileProcessingService.uploadThumbnail(tempFile, thumbnailKey, "image/jpeg");
 
         // Assert
-        verify(s3Client).putObject(any(PutObjectRequest.class), any(RequestBody.class));
+        verify(blobContainerClient).getBlobClient(thumbnailKey);
+        verify(mockBlobClient).uploadFromFile(tempFile.toString(), true);
 
         // Clean up
         Files.deleteIfExists(tempFile);

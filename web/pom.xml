@@ -9,10 +9,6 @@
         <version>0.0.1-SNAPSHOT</version>
     </parent>
 
-    <properties>
-        <aws-sdk.version>2.25.13</aws-sdk.version>
-    </properties>
-
     <artifactId>assets-manager-web</artifactId>
     <name>assets-manager-web</name>
     <description>Web module for assets manager that handles file uploads and viewing</description>
@@ -36,8 +32,9 @@
             <artifactId>spring-boot-starter-amqp</artifactId>
         </dependency>
         <dependency>
-            <groupId>software.amazon.awssdk</groupId>
-            <artifactId>s3</artifactId>
+            <groupId>com.azure</groupId>
+            <artifactId>azure-storage-blob</artifactId>
+            <version>12.29.0</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -75,16 +72,6 @@
             <version>2.8.6</version>
         </dependency>
     </dependencies>
-
-    <dependencyManagement>
-        <dependencies>
-            <dependency>
-                <groupId>software.amazon.awssdk</groupId>
-                <artifactId>s3</artifactId>
-                <version>${aws-sdk.version}</version>
-            </dependency>
-        </dependencies>
-    </dependencyManagement>
 
     <build>
         <plugins>

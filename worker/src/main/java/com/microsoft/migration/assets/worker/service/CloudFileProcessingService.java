@@ -1,52 +1,31 @@
 package com.microsoft.migration.assets.worker.service;
 
+import com.azure.storage.blob.BlobClient;
+import com.azure.storage.blob.BlobContainerClient;
 import com.microsoft.migration.assets.common.repository.ImageMetadataRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
-import software.amazon.awssdk.core.sync.RequestBody;
-import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.GetObjectRequest;
-import software.amazon.awssdk.services.s3.model.GetUrlRequest;
-import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
-import java.io.InputStream;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 
 @Service
 @Profile("!dev")
 @RequiredArgsConstructor
 public class CloudFileProcessingService extends AbstractFileProcessingService {
-    private final S3Client s3Client;
+    private final BlobContainerClient blobContainerClient;
     private final ImageMetadataRepository imageMetadataRepository;
-    
-    @Value("${aws.s3.bucket}")
-    private String bucketName;
 
     @Override
     public void downloadOriginal(String key, Path destination) throws Exception {
-        GetObjectRequest request = GetObjectRequest.builder()
-                .bucket(bucketName)
-                .key(key)
-                .build();
-                
-        try (InputStream inputStream = s3Client.getObject(request)) {
-            Files.copy(inputStream, destination, StandardCopyOption.REPLACE_EXISTING);
-        }
+        BlobClient blobClient = blobContainerClient.getBlobClient(key);
+        blobClient.downloadToFile(destination.toString(), true);
     }
 
     @Override
     public void uploadThumbnail(Path source, String key, String contentType) throws Exception {
-        PutObjectRequest request = PutObjectRequest.builder()
-                .bucket(bucketName)
-                .key(key)
-                .contentType(contentType)
-                .build();
-                
-        s3Client.putObject(request, RequestBody.fromFile(source));
+        BlobClient blobClient = blobContainerClient.getBlobClient(key);
+        blobClient.uploadFromFile(source.toString(), true);
 
         // Extract the original key from the thumbnail key
         String originalKey = extractOriginalKey(key);
@@ -66,11 +45,8 @@ public class CloudFileProcessingService extends AbstractFileProcessingService {
 
     @Override
     protected String generateUrl(String key) {
-        GetUrlRequest request = GetUrlRequest.builder()
-                .bucket(bucketName)
-                .key(key)
-                .build();
-        return s3Client.utilities().getUrl(request).toString();
+        BlobClient blobClient = blobContainerClient.getBlobClient(key);
+        return blobClient.getBlobUrl();
     }
 
     private String extractOriginalKey(String key) {

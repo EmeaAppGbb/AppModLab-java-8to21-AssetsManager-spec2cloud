@@ -9,10 +9,6 @@
         <version>0.0.1-SNAPSHOT</version>
     </parent>
 
-    <properties>
-        <aws-sdk.version>2.25.13</aws-sdk.version>
-    </properties>
-
     <artifactId>assets-manager-worker</artifactId>
     <name>assets-manager-worker</name>
     <description>Worker module for assets manager that handles thumbnail generation</description>
@@ -32,8 +28,9 @@
             <artifactId>spring-boot-starter-amqp</artifactId>
         </dependency>
         <dependency>
-            <groupId>software.amazon.awssdk</groupId>
-            <artifactId>s3</artifactId>
+            <groupId>com.azure</groupId>
+            <artifactId>azure-storage-blob</artifactId>
+            <version>12.29.0</version>
         </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>
@@ -59,16 +56,6 @@
             <scope>runtime</scope>
         </dependency>
     </dependencies>
-
-    <dependencyManagement>
-        <dependencies>
-            <dependency>
-                <groupId>software.amazon.awssdk</groupId>
-                <artifactId>s3</artifactId>
-                <version>${aws-sdk.version}</version>
-            </dependency>
-        </dependencies>
-    </dependencyManagement>
 
     <build>
         <plugins>
