@@ -3,6 +3,8 @@
 > Generated from `specs/assessment/modernization.md` — 28 findings across 6 categories.
 > ADR constraints: ADR-001 (Java 21), ADR-002 (Spring Boot 3.4.x), ADR-003 (Shared Maven module), ADR-004 (AWS → Azure).
 >
+> **Security remediation increments (sec-001 through sec-007) appended from `specs/assessment/security.md`.**
+> ADR-005 (Form Login) accepted and implemented — S1, S2, S3, S7, S10, S12 resolved.
 > **mod-010 (Update AWS SDK) has been superseded by mod-018/mod-019 (Azure migration) per ADR-004.**
 
 ## Dependency Graph
@@ -628,4 +630,244 @@ All 28 assessment findings are covered:
 - [x] Acceptance criteria are specific and testable
 - [x] No "big bang" increments (mod-006 is largest but touches only namespace/adapters — a mechanical change)
 - [x] Every increment includes behavioral deltas
+- [x] Regression scope is identified for each increment
+
+---
+
+# Security Remediation Increments
+
+> Generated from `specs/assessment/security.md` — 15 findings total.
+> **6 findings already resolved** by Spring Security implementation (ADR-005): S1, S2, S3, S7, S10, S12.
+> **S15 requires no action** (DevTools auto-disabled in production JARs).
+> **7 increments below** cover the remaining 8 open findings (S6+S9 merged).
+
+## Findings → Status Map
+
+| Finding | Severity | Status | Increment |
+|---------|----------|--------|-----------|
+| S1 — No auth framework | Critical | ✅ RESOLVED | ADR-005 impl |
+| S2 — No authorization | Critical | ✅ RESOLVED | ADR-005 impl |
+| S3 — No CSRF | High | ✅ RESOLVED | ADR-005 impl |
+| S4 — No file type validation | High | 🔴 OPEN | sec-001 |
+| S5 — Weak path traversal | High | 🔴 OPEN | sec-002 |
+| S6 — XSS via error messages | High | 🔴 OPEN | sec-003 |
+| S7 — No security headers | High | ✅ RESOLVED | ADR-005 impl |
+| S8 — Jackson type restrictions | Medium | 🟡 OPEN | sec-004 |
+| S9 — Exception details exposed | Medium | 🔴 OPEN | sec-003 (merged with S6) |
+| S10 — Swagger public | Medium | ✅ RESOLVED | ADR-005 impl |
+| S11 — Default credential fallbacks | Medium | 🟡 OPEN | sec-005 |
+| S12 — No session config | Medium | ✅ RESOLVED | ADR-005 impl |
+| S13 — Log data sensitivity | Low | 🟢 OPEN | sec-006 |
+| S14 — HTTP for Azurite | Low | 🟢 OPEN | sec-007 |
+| S15 — DevTools on classpath | Low | ✅ NO ACTION | Auto-disabled in prod |
+
+## Security Dependency Graph
+
+```
+sec-001 (no deps) ──┐
+sec-002 (no deps) ──┤
+sec-003 (no deps) ──┼──→ sec-004 (no deps, parallel)
+                    ├──→ sec-005 (no deps, parallel)
+                    ├──→ sec-006 (no deps, parallel)
+                    └──→ sec-007 (no deps, parallel)
+```
+
+All security increments are independent — no inter-dependencies. Tier ordering is mandatory: Tier 2 before Tier 3 before Tier 4.
+
+---
+
+## Tier 2 (High) — Fix Before Production
+
+---
+
+## sec-001: Add Server-Side File Type Validation
+
+- **Type:** security
+- **Tier:** 2 (High)
+- **Vulnerability:** S4 — No server-side content-type validation. Upload accepts any file type if client-side `accept="image/*"` is bypassed. Attackers can upload executables, scripts, or malicious content. (OWASP A04)
+- **Scope:** Add a `validateUploadedFile()` method to `StorageService` (default method) or to both `CloudStorageService.uploadObject()` and `LocalFileStorageService.uploadObject()`. Check: (1) content type against allowlist (`image/jpeg`, `image/png`, `image/gif`, `image/webp`), (2) file extension against allowlist. No other changes.
+- **Acceptance Criteria:**
+  - [ ] Upload of `image/jpeg`, `image/png`, `image/gif`, `image/webp` succeeds
+  - [ ] Upload of `application/pdf`, `text/html`, `application/javascript` is rejected with error message
+  - [ ] Upload with spoofed content type but `.exe` extension is rejected
+  - [ ] All existing upload tests pass
+- **Test Strategy:**
+  - Add test: upload `.exe` file → expect 400/error redirect
+  - Add test: upload `.html` file → expect 400/error redirect
+  - Add test: upload valid `.jpg` → expect success
+  - Run full regression suite
+- **Gherkin Deltas:**
+  - New: `Scenario: Reject non-image file upload` — POST with .exe → error
+  - New: `Scenario: Reject spoofed content type` — POST with fake MIME → error
+  - Regression: all existing upload scenarios must pass
+- **Dependencies:** none
+- **Rollback Plan:** Remove validation logic from `uploadObject()` methods. Revert to accepting all file types.
+- **Risk:** Low — additive validation. Only rejects files that weren't previously allowed by design (app is an *image* manager).
+
+---
+
+## sec-002: Harden Path Traversal Protection
+
+- **Type:** security
+- **Tier:** 2 (High)
+- **Vulnerability:** S5 — `validateKey()` in `StorageController` checks for `..`, `/`, `\` as literal strings but doesn't handle URL-encoded bypasses (`%2e%2e`, `%2f`), double encoding, or canonical path verification. (OWASP A01)
+- **Scope:** Rewrite `validateKey()` in `StorageController.java` to: (1) URL-decode the key, (2) normalize via `Path.normalize()`, (3) verify the resolved path doesn't escape the base directory, (4) reject any key containing control characters. No other changes.
+- **Acceptance Criteria:**
+  - [ ] Key `../../../etc/passwd` is rejected
+  - [ ] Key `%2e%2e%2fetc%2fpasswd` (URL-encoded) is rejected
+  - [ ] Key `image.jpg` is accepted
+  - [ ] Key `uuid-image.jpg` is accepted
+  - [ ] All existing view/delete tests pass
+- **Test Strategy:**
+  - Add test: URL-encoded traversal `%2e%2e` → expect 400
+  - Add test: double-encoded traversal → expect 400
+  - Add test: key with null bytes → expect 400
+  - Add test: normal key → expect success
+  - Run full regression suite
+- **Gherkin Deltas:**
+  - New: `Scenario: Reject URL-encoded path traversal`
+  - Modified: existing `Scenario: Download with path traversal attempt` — add URL-encoded variant
+  - Regression: all existing download/delete scenarios must pass
+- **Dependencies:** none
+- **Rollback Plan:** Revert `validateKey()` to the previous string-based implementation.
+- **Risk:** Low — isolated to one private method in the controller. Risk of over-blocking if regex is too aggressive — test with valid UUID-prefixed keys.
+
+---
+
+## sec-003: Sanitize Error Messages Returned to Users
+
+- **Type:** security
+- **Tier:** 2 (High)
+- **Vulnerability:** S6 + S9 — Exception messages from `IOException.getMessage()` and other exceptions are passed directly to Thymeleaf flash attributes and rendered in the UI. May leak internal paths, Azure SDK details, or database errors. (OWASP A03, A05)
+- **Scope:** In `StorageController.java`, replace all `e.getMessage()` in catch blocks with generic user-friendly messages. Log the full exception at ERROR level. Affects: `uploadObject()` catch, `viewObjectPage()` catch, `deleteObject()` catch, `handleInvalidKey()`. No other changes.
+- **Acceptance Criteria:**
+  - [ ] Upload failure shows "Failed to upload file" (not the exception message)
+  - [ ] View failure shows "Failed to view image" (not the exception message)
+  - [ ] Delete failure shows "Failed to delete file" (not the exception message)
+  - [ ] Full exception details are logged at ERROR level (visible in logs, not in UI)
+  - [ ] All existing controller tests pass
+- **Test Strategy:**
+  - Add test: force IOException in upload → verify flash message is generic (no stack trace content)
+  - Add test: verify log output contains the full exception
+  - Run full regression suite
+- **Gherkin Deltas:**
+  - Modified: error scenarios in `image-upload.feature` — error message text changes from specific to generic
+  - Regression: all existing success-path scenarios must pass unchanged
+- **Dependencies:** none
+- **Rollback Plan:** Restore `e.getMessage()` in catch blocks.
+- **Risk:** Low — changes only error message text, not error handling logic. Operators still see full details in logs.
+
+---
+
+## Tier 3 (Medium) — Harden
+
+---
+
+## sec-004: Restrict Jackson Deserialization to Trusted Types
+
+- **Type:** security
+- **Tier:** 3 (Medium)
+- **Vulnerability:** S8 — `Jackson2JsonMessageConverter` in `RabbitConfig` uses default ObjectMapper without trusted-type restrictions. Could deserialize unexpected types from the RabbitMQ queue. (OWASP A08)
+- **Scope:** In `RabbitConfig.java` (both web and worker modules), configure `DefaultClassMapper` with `setTrustedPackages("com.microsoft.migration.assets.common.model")` on the `Jackson2JsonMessageConverter`. No other changes.
+- **Acceptance Criteria:**
+  - [ ] `ImageProcessingMessage` deserializes correctly from queue
+  - [ ] Untrusted types (e.g., `java.lang.Runtime`) are rejected during deserialization
+  - [ ] All existing worker and backup processor tests pass
+- **Test Strategy:**
+  - Add test: send message with trusted type → deserialized successfully
+  - Add test: send message with untrusted `__TypeId__` header → rejected
+  - Run full regression suite
+- **Gherkin Deltas:**
+  - New: `Scenario: Reject untrusted message types` — worker rejects malicious type header
+  - Regression: all existing thumbnail generation scenarios must pass
+- **Dependencies:** none
+- **Rollback Plan:** Remove `setClassMapper()` call, revert to default converter.
+- **Risk:** Low — if trusted packages are set too narrowly, legitimate messages fail to deserialize. Mitigated by testing with real `ImageProcessingMessage`.
+
+---
+
+## sec-005: Remove Default Credential Fallbacks for Production
+
+- **Type:** security
+- **Tier:** 3 (Medium)
+- **Vulnerability:** S11 — `application.properties` uses `${ENV_VAR:default}` pattern with insecure defaults (Azurite key, guest/guest, postgres/postgres). If env vars are not set in production, these defaults activate silently. (OWASP A02)
+- **Scope:** Create `application-prod.properties` in both web and worker modules with credential properties that have NO defaults (e.g., `spring.datasource.password=${POSTGRES_PASSWORD}`). Keep current defaults in `application.properties` for dev convenience. Add `spring.profiles.active=prod` note in deployment docs. No code changes — configuration only.
+- **Acceptance Criteria:**
+  - [ ] `application-prod.properties` exists in both web and worker resource directories
+  - [ ] Production profile fails to start if any required env var is missing
+  - [ ] Default dev profile still works with defaults for local development
+  - [ ] Both modules compile
+- **Test Strategy:**
+  - Manual: start app with `spring.profiles.active=prod` without env vars → expect startup failure
+  - Manual: start app with `spring.profiles.active=prod` with all env vars → expect successful start
+  - Existing tests unaffected (use default profile)
+- **Gherkin Deltas:**
+  - New: none (configuration change, no behavioral impact)
+  - Regression: all existing tests must pass (they use default profile)
+- **Dependencies:** none
+- **Rollback Plan:** Delete `application-prod.properties` files.
+- **Risk:** Low — only affects production profile. Dev/test profiles unchanged.
+
+---
+
+## Tier 4 (Low) — Defense-in-Depth
+
+---
+
+## sec-006: Sanitize Sensitive Data in Log Output
+
+- **Type:** security
+- **Tier:** 4 (Low)
+- **Vulnerability:** S13 — File operation logging in `WebMvcConfig.FileOperationLoggingInterceptor` logs full request URIs at INFO level. Log entries may contain storage keys that are user-identifiable or reveal internal structure. (OWASP A09)
+- **Scope:** In `WebMvcConfig.java`, truncate or mask storage keys in log output. Replace full URI with operation type + masked key (e.g., `[FILE-OP] GET /storage/view/a3f2...` instead of the full UUID key). No other changes.
+- **Acceptance Criteria:**
+  - [ ] Log entries show truncated keys (first 8 chars + `...`)
+  - [ ] Log entries still show HTTP method, operation type, duration, and status
+  - [ ] All existing tests pass
+- **Test Strategy:**
+  - Manual: upload file, check logs → verify keys are truncated
+  - Run full regression suite
+- **Gherkin Deltas:**
+  - New: none
+  - Regression: all existing scenarios pass unchanged
+- **Dependencies:** none
+- **Rollback Plan:** Restore full URI logging.
+- **Risk:** Low — cosmetic change to log format. No functional impact.
+
+---
+
+## sec-007: Enforce HTTPS for Production Storage Connections
+
+- **Type:** security
+- **Tier:** 4 (Low)
+- **Vulnerability:** S14 — Default Azure Storage connection string uses `http://` for Azurite dev emulator. If this default accidentally runs in production, storage traffic is unencrypted. (OWASP A02)
+- **Scope:** In `application-prod.properties` (created in sec-005), ensure the Azure Storage connection string requires HTTPS: `azure.storage.connection-string=${AZURE_STORAGE_CONNECTION_STRING}` (no default, production must provide HTTPS endpoint). Add a startup check that validates the connection string uses HTTPS when the `prod` profile is active. No changes to dev defaults.
+- **Acceptance Criteria:**
+  - [ ] Production profile requires HTTPS connection string
+  - [ ] Dev profile continues to use HTTP (Azurite) by default
+  - [ ] Application fails to start in prod profile with HTTP connection string
+- **Test Strategy:**
+  - Manual: start with prod profile + HTTP connection string → expect startup failure or warning
+  - Existing tests unaffected (use dev defaults)
+- **Gherkin Deltas:**
+  - New: none (deployment configuration)
+  - Regression: all existing tests pass unchanged
+- **Dependencies:** sec-005 (production profile must exist)
+- **Rollback Plan:** Remove HTTPS validation logic.
+- **Risk:** Low — only affects production profile. No impact on dev/test.
+
+---
+
+## Security Self-Review Checklist
+
+- [x] Every Tier 2 finding has a corresponding increment with no blockers (sec-001, sec-002, sec-003)
+- [x] Every increment fixes exactly one vulnerability (S6+S9 merged as they're the same fix)
+- [x] Each increment has a reproduction test that validates the fix
+- [x] No increment modifies code beyond what is necessary for the fix
+- [x] Tier ordering is strict — Tier 2 before Tier 3 before Tier 4
+- [x] Rollback plans exist for every increment
+- [x] No inter-dependencies within tiers (all can be parallelized)
+- [x] Acceptance criteria are specific: "input X no longer produces behavior Y"
+- [x] No security fix introduces a new vulnerability
+- [x] Every increment includes Gherkin deltas (Track A)
 - [x] Regression scope is identified for each increment
