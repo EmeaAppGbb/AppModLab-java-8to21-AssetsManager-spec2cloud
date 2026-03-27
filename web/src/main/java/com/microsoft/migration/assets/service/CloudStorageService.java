@@ -62,6 +62,7 @@ public class CloudStorageService implements StorageService {
     @Override
     @Transactional
     public void uploadObject(MultipartFile file) throws IOException {
+        validateImageFile(file);
         String key = generateKey(file.getOriginalFilename());
         BlobClient blobClient = blobContainerClient.getBlobClient(key);
         blobClient.upload(file.getInputStream(), file.getSize(), true);

@@ -61,7 +61,7 @@ class LocalFileStorageServiceTest {
 
         IOException exception = assertThrows(IOException.class,
                 () -> service.uploadObject(emptyFile));
-        assertEquals("Failed to store empty file", exception.getMessage());
+        assertEquals("File is empty", exception.getMessage());
     }
 
     @Test

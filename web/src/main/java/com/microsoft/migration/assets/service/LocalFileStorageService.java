@@ -80,11 +80,9 @@ public class LocalFileStorageService implements StorageService {
 
     @Override
     public void uploadObject(MultipartFile file) throws IOException {
-        if (file.isEmpty()) {
-            throw new IOException("Failed to store empty file");
-        }
-        
-        String filename = StringUtils.cleanPath(file.getOriginalFilename());
+        validateImageFile(file);
+
+        String filename= StringUtils.cleanPath(file.getOriginalFilename());
         if (filename.contains("..")) {
             throw new IOException("Cannot store file with relative path outside current directory");
         }
