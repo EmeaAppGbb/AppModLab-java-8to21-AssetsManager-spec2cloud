@@ -1,102 +1,96 @@
 package com.microsoft.migration.assets.worker.service;
 
+import com.azure.storage.blob.BlobClient;
+import com.azure.storage.blob.BlobContainerClient;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microsoft.migration.assets.worker.repository.ImageMetadataRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
-import software.amazon.awssdk.core.ResponseInputStream;
-import software.amazon.awssdk.core.sync.RequestBody;
-import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.GetObjectRequest;
-import software.amazon.awssdk.services.s3.model.GetObjectResponse;
-import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
+import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collections;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 public class S3FileProcessingServiceTest {
 
     @Mock
-    private S3Client s3Client;
+    private BlobContainerClient blobContainerClient;
 
     @Mock
     private ImageMetadataRepository imageMetadataRepository;
 
-    @InjectMocks
+    @Mock
+    private BlobClient blobClient;
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
     private S3FileProcessingService s3FileProcessingService;
 
-    private final String bucketName = "test-bucket";
     private final String testKey = "test-image.jpg";
     private final String thumbnailKey = "test-image_thumbnail.jpg";
 
     @BeforeEach
     void setUp() {
-        ReflectionTestUtils.setField(s3FileProcessingService, "bucketName", bucketName);
+        s3FileProcessingService = new S3FileProcessingService(objectMapper, blobContainerClient, imageMetadataRepository);
     }
 
     @Test
-    void getStorageTypeReturnsS3() {
-        // Act
-        String result = s3FileProcessingService.getStorageType();
-
-        // Assert
-        assertEquals("s3", result);
+    void getStorageTypeReturnsAzure() {
+        var result = s3FileProcessingService.getStorageType();
+        assertEquals("azure", result);
     }
 
     @Test
-    void downloadOriginalCopiesFileFromS3() throws Exception {
-        // Arrange
-        Path tempFile = Files.createTempFile("download-", ".tmp");
-        @SuppressWarnings("unchecked")
-        ResponseInputStream<GetObjectResponse> mockResponse = mock(ResponseInputStream.class);
+    void downloadOriginalCopiesFileFromBlob() throws Exception {
+        var tempFile = Files.createTempFile("download-", ".tmp");
 
-        when(s3Client.getObject(any(GetObjectRequest.class))).thenReturn(mockResponse);
+        when(blobContainerClient.getBlobClient(testKey)).thenReturn(blobClient);
+        doNothing().when(blobClient).downloadStream(any(OutputStream.class));
 
-        // Act
         s3FileProcessingService.downloadOriginal(testKey, tempFile);
 
-        // Assert
-        verify(s3Client).getObject(any(GetObjectRequest.class));
+        verify(blobContainerClient).getBlobClient(testKey);
+        verify(blobClient).downloadStream(any(OutputStream.class));
 
-        // Clean up
         Files.deleteIfExists(tempFile);
     }
 
     @Test
-    void uploadThumbnailPutsFileToS3() throws Exception {
-        // Arrange
-        Path tempFile = Files.createTempFile("thumbnail-", ".tmp");
+    void uploadThumbnailPutsFileToBlob() throws Exception {
+        var tempFile = Files.createTempFile("thumbnail-", ".tmp");
+        // Write some content so uploadFromFile works
+        Files.writeString(tempFile, "test content");
+        
+        when(blobContainerClient.getBlobClient(thumbnailKey)).thenReturn(blobClient);
+        doNothing().when(blobClient).uploadFromFile(anyString(), eq(true));
         when(imageMetadataRepository.findAll()).thenReturn(Collections.emptyList());
 
-        // Act
         s3FileProcessingService.uploadThumbnail(tempFile, thumbnailKey, "image/jpeg");
 
-        // Assert
-        verify(s3Client).putObject(any(PutObjectRequest.class), any(RequestBody.class));
+        verify(blobContainerClient).getBlobClient(thumbnailKey);
+        verify(blobClient).uploadFromFile(anyString(), eq(true));
 
-        // Clean up
         Files.deleteIfExists(tempFile);
     }
 
     @Test
-    void testExtractOriginalKey() throws Exception {
-        // Use reflection to test private method
-        String result = (String) ReflectionTestUtils.invokeMethod(
+    void testExtractOriginalKey() {
+        var result = (String) ReflectionTestUtils.invokeMethod(
                 s3FileProcessingService,
                 "extractOriginalKey",
                 "image_thumbnail.jpg");
 
-        // Assert
         assertEquals("image.jpg", result);
     }
 }
