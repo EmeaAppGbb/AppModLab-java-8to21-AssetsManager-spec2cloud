@@ -62,3 +62,26 @@ A sample image selected and previewed before upload.
 Image uploaded successfully and displayed in the gallery with metadata (size, timestamp) and View/Delete actions.
 
 ![After Upload](assets/screenshots/04-after-upload.png)
+
+## Solution Branch
+
+The completed modernization is available on the `solution-final` branch with step-by-step tags:
+
+| Step | Tag | Description |
+|------|-----|-------------|
+| 01 | `step-01-explore-legacy` | Explore legacy Java 8 application, analyze codebase |
+| 02 | `step-02-spec2cloud-analysis` | Spec2Cloud analysis of migration candidates |
+| 03 | `step-03-migration-spec` | Generate comprehensive migration specification |
+| 04 | `step-04-update-java` | Update Java version from 8 to 21 in POMs |
+| 05 | `step-05-migrate-springboot` | Migrate Spring Boot 2.7 → 3.4 (jakarta namespace) |
+| 06 | `step-06-modernize-code` | Apply Java 21 features (records, sealed, var, switch expressions, virtual threads) |
+| 07 | `step-07-migrate-cloud` | Migrate AWS S3/RabbitMQ → Azure Blob Storage/Service Bus |
+| 08 | `step-08-build-test` | Full build and test verification |
+
+### Key Modernization Changes
+- **Java**: 8 → 21 (records, sealed interfaces, var, switch expressions, pattern matching, virtual threads)
+- **Spring Boot**: 2.7.18 → 3.4.1 (jakarta namespace, modern interfaces)
+- **Storage**: AWS S3 SDK → Azure Blob Storage SDK (12.29.1)
+- **Messaging**: RabbitMQ/AMQP → Azure Service Bus SDK (7.17.8)
+- **Database**: PostgreSQL (unchanged)
+- **Tests**: 4/4 passing
