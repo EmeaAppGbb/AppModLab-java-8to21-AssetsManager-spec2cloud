@@ -1,12 +1,11 @@
 package com.microsoft.migration.assets.worker.service;
 
+import com.azure.messaging.servicebus.ServiceBusErrorContext;
+import com.azure.messaging.servicebus.ServiceBusReceivedMessageContext;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microsoft.migration.assets.worker.model.ImageProcessingMessage;
 import com.microsoft.migration.assets.worker.util.StorageUtil;
-import com.rabbitmq.client.Channel;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.amqp.rabbit.annotation.RabbitListener;
-import org.springframework.amqp.support.AmqpHeaders;
-import org.springframework.messaging.handler.annotation.Header;
 
 import javax.imageio.ImageIO;
 import java.awt.Graphics2D;
@@ -16,21 +15,24 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-import static com.microsoft.migration.assets.worker.config.RabbitConfig.IMAGE_PROCESSING_QUEUE;
-
 @Slf4j
 public abstract non-sealed class AbstractFileProcessingService implements FileProcessor {
 
-    @RabbitListener(queues = IMAGE_PROCESSING_QUEUE)
-    public void processImage(final ImageProcessingMessage message, 
-                           Channel channel, 
-                           @Header(AmqpHeaders.DELIVERY_TAG) long deliveryTag) {
-        var processingSuccess = false;
+    protected final ObjectMapper objectMapper;
+
+    protected AbstractFileProcessingService(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
+
+    public void processMessage(ServiceBusReceivedMessageContext context) {
         Path tempDir = null;
         Path originalFile = null;
         Path thumbnailFile = null;
 
         try {
+            var body = context.getMessage().getBody().toString();
+            var message = objectMapper.readValue(body, ImageProcessingMessage.class);
+            
             log.info("Processing image: {}", message.key());
 
             tempDir = Files.createTempDirectory("image-processing");
@@ -39,54 +41,37 @@ public abstract non-sealed class AbstractFileProcessingService implements FilePr
 
             // Only process if message matches our storage type
             if (message.storageType().equals(getStorageType())) {
-                // Download original file
                 downloadOriginal(message.key(), originalFile);
-
-                // Generate thumbnail
                 generateThumbnail(originalFile, thumbnailFile);
 
-                // Upload thumbnail
                 var thumbnailKey = StorageUtil.getThumbnailKey(message.key());
                 uploadThumbnail(thumbnailFile, thumbnailKey, message.contentType());
 
                 log.info("Successfully processed image: {}", message.key());
-
-                // Mark processing as successful
-                processingSuccess = true;
             } else {
                 log.debug("Skipping message with storage type: {} (we handle {})",
                     message.storageType(), getStorageType());
-                // This is not an error, just not for this service, so we can acknowledge
-                processingSuccess = true;
             }
+            
+            // Complete the message
+            context.complete();
+            log.debug("Message completed for: {}", message.key());
         } catch (Exception e) {
-            log.error("Failed to process image: " + message.key(), e);
+            log.error("Failed to process image message", e);
+            context.abandon();
         } finally {
             try {
-                // Cleanup temporary files
-                if (originalFile != null) {
-                    Files.deleteIfExists(originalFile);
-                }
-                if (thumbnailFile != null) {
-                    Files.deleteIfExists(thumbnailFile);
-                }
-                if (tempDir != null) {
-                    Files.deleteIfExists(tempDir);
-                }
-
-                if (processingSuccess) {
-                    // Acknowledge the message if processing was successful
-                    channel.basicAck(deliveryTag, false);
-                    log.debug("Message acknowledged for: {}", message.key());
-                } else {
-                    // Reject the message with requeue=false to trigger dead letter exchange
-                    channel.basicNack(deliveryTag, false, false);
-                    log.debug("Message rejected and sent to dead letter exchange for delayed retry: {}", message.key());
-                }
+                if (originalFile != null) Files.deleteIfExists(originalFile);
+                if (thumbnailFile != null) Files.deleteIfExists(thumbnailFile);
+                if (tempDir != null) Files.deleteIfExists(tempDir);
             } catch (IOException e) {
-                log.error("Error handling RabbitMQ acknowledgment for: {}", message.key(), e);
+                log.error("Error cleaning up temporary files", e);
             }
         }
+    }
+
+    public void processError(ServiceBusErrorContext context) {
+        log.error("Error processing Service Bus message: {}", context.getException().getMessage(), context.getException());
     }
     
     protected abstract String generateUrl(String key);

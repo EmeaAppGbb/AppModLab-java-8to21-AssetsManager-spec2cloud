@@ -1,5 +1,6 @@
 package com.microsoft.migration.assets.worker.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
@@ -21,6 +22,10 @@ public class LocalFileProcessingService extends AbstractFileProcessingService {
     private String storageDirectory;
     
     private Path rootLocation;
+
+    public LocalFileProcessingService(ObjectMapper objectMapper) {
+        super(objectMapper);
+    }
     
     @PostConstruct
     public void init() throws Exception {
@@ -35,7 +40,7 @@ public class LocalFileProcessingService extends AbstractFileProcessingService {
 
     @Override
     public void downloadOriginal(String key, Path destination) throws Exception {
-        Path sourcePath = rootLocation.resolve(key);
+        var sourcePath = rootLocation.resolve(key);
         if (!Files.exists(sourcePath)) {
             throw new java.io.FileNotFoundException("File not found: " + sourcePath);
         }
@@ -44,7 +49,7 @@ public class LocalFileProcessingService extends AbstractFileProcessingService {
 
     @Override
     public void uploadThumbnail(Path source, String key, String contentType) throws Exception {
-        Path destinationPath = rootLocation.resolve(key);
+        var destinationPath = rootLocation.resolve(key);
         Files.createDirectories(destinationPath.getParent());
         Files.copy(source, destinationPath, StandardCopyOption.REPLACE_EXISTING);
     }
@@ -56,7 +61,6 @@ public class LocalFileProcessingService extends AbstractFileProcessingService {
 
     @Override
     protected String generateUrl(String key) {
-        // For local storage, we'll just return the relative path
         return "/storage/" + key;
     }
 }

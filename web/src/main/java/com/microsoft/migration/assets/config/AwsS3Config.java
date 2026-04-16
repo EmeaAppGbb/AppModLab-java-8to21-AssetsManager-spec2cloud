@@ -1,31 +1,34 @@
 package com.microsoft.migration.assets.config;
 
+import com.azure.storage.blob.BlobContainerClient;
+import com.azure.storage.blob.BlobServiceClient;
+import com.azure.storage.blob.BlobServiceClientBuilder;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-
-import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
-import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
-import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.services.s3.S3Client;
 
 @Configuration
 public class AwsS3Config {
 
-    @Value("${aws.accessKey}")
-    private String accessKey;
+    @Value("${azure.storage.connection-string}")
+    private String connectionString;
 
-    @Value("${aws.secretKey}")
-    private String secretKey;
+    @Value("${azure.storage.container-name}")
+    private String containerName;
 
-    @Value("${aws.region}")
-    private String region;
+    @Bean
+    public BlobServiceClient blobServiceClient() {
+        return new BlobServiceClientBuilder()
+                .connectionString(connectionString)
+                .buildClient();
+    }
 
-    public S3Client s3Client() {
-        AwsBasicCredentials awsCredentials = AwsBasicCredentials.create(accessKey, secretKey);
-        
-        return S3Client.builder()
-                .region(Region.of(region))
-                .credentialsProvider(StaticCredentialsProvider.create(awsCredentials))
-                .build();
+    @Bean
+    public BlobContainerClient blobContainerClient(BlobServiceClient blobServiceClient) {
+        var client = blobServiceClient.getBlobContainerClient(containerName);
+        if (!client.exists()) {
+            client.create();
+        }
+        return client;
     }
 }

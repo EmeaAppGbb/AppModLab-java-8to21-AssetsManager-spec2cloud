@@ -1,13 +1,9 @@
 package com.microsoft.migration.assets.worker.config;
 
-import org.springframework.amqp.core.AcknowledgeMode;
-import org.springframework.amqp.core.Queue;
-import org.springframework.amqp.core.QueueBuilder;
-import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory;
-import org.springframework.amqp.rabbit.connection.ConnectionFactory;
-import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
-import org.springframework.amqp.support.converter.MessageConverter;
-import org.springframework.boot.autoconfigure.amqp.SimpleRabbitListenerContainerFactoryConfigurer;
+import com.azure.messaging.servicebus.ServiceBusClientBuilder;
+import com.azure.messaging.servicebus.ServiceBusProcessorClient;
+import com.microsoft.migration.assets.worker.service.AbstractFileProcessingService;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -15,26 +11,20 @@ import org.springframework.context.annotation.Configuration;
 public class RabbitConfig {
     public static final String IMAGE_PROCESSING_QUEUE = "image-processing";
 
-    @Bean
-    public Queue imageProcessingQueue() {
-        return QueueBuilder.durable(IMAGE_PROCESSING_QUEUE)
-        .build();
-    }
+    @Value("${azure.servicebus.connection-string}")
+    private String connectionString;
 
     @Bean
-    public MessageConverter jsonMessageConverter() {
-        return new Jackson2JsonMessageConverter();
+    public ServiceBusProcessorClient serviceBusProcessorClient(AbstractFileProcessingService processingService) {
+        var processorClient = new ServiceBusClientBuilder()
+                .connectionString(connectionString)
+                .processor()
+                .queueName(IMAGE_PROCESSING_QUEUE)
+                .processMessage(processingService::processMessage)
+                .processError(processingService::processError)
+                .buildProcessorClient();
+        
+        processorClient.start();
+        return processorClient;
     }
-
-    @Bean
-    public SimpleRabbitListenerContainerFactory rabbitListenerContainerFactory(
-            ConnectionFactory connectionFactory,
-            SimpleRabbitListenerContainerFactoryConfigurer configurer) {
-        SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
-        configurer.configure(factory, connectionFactory);
-        factory.setMessageConverter(jsonMessageConverter());
-        factory.setAcknowledgeMode(AcknowledgeMode.MANUAL);
-        return factory;
-    }
-
 }

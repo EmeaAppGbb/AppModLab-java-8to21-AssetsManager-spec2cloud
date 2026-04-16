@@ -1,10 +1,12 @@
 package com.microsoft.migration.assets.service;
 
+import com.azure.messaging.servicebus.ServiceBusMessage;
+import com.azure.messaging.servicebus.ServiceBusSenderClient;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microsoft.migration.assets.model.ImageProcessingMessage;
 import com.microsoft.migration.assets.model.S3StorageItem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
@@ -19,23 +21,23 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static com.microsoft.migration.assets.config.RabbitConfig.IMAGE_PROCESSING_QUEUE;
-
 @Service
 @Profile("dev") // Only active when dev profile is active
 public final class LocalFileStorageService implements StorageService {
 
     private static final Logger logger = LoggerFactory.getLogger(LocalFileStorageService.class);
     
-    private final RabbitTemplate rabbitTemplate;
+    private final ServiceBusSenderClient serviceBusSenderClient;
+    private final ObjectMapper objectMapper;
     
     @Value("${local.storage.directory:../storage}")
     private String storageDirectory;
     
     private Path rootLocation;
 
-    public LocalFileStorageService(RabbitTemplate rabbitTemplate) {
-        this.rabbitTemplate = rabbitTemplate;
+    public LocalFileStorageService(ServiceBusSenderClient serviceBusSenderClient, ObjectMapper objectMapper) {
+        this.serviceBusSenderClient = serviceBusSenderClient;
+        this.objectMapper = objectMapper;
     }
     
     @PostConstruct
@@ -95,14 +97,19 @@ public final class LocalFileStorageService implements StorageService {
         Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
         logger.info("Stored file: {}", targetLocation);
 
-        // Send message to queue for thumbnail generation
+        // Send message to Service Bus for thumbnail generation
         var message = new ImageProcessingMessage(
             filename,
             file.getContentType(),
             getStorageType(),
             file.getSize()
         );
-        rabbitTemplate.convertAndSend(IMAGE_PROCESSING_QUEUE, message);
+        try {
+            var json = objectMapper.writeValueAsString(message);
+            serviceBusSenderClient.sendMessage(new ServiceBusMessage(json));
+        } catch (Exception e) {
+            logger.error("Failed to send message to Service Bus", e);
+        }
     }
 
     @Override
