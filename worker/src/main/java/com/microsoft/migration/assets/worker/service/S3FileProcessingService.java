@@ -11,7 +11,6 @@ import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetUrlRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
-import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -28,19 +27,19 @@ public class S3FileProcessingService extends AbstractFileProcessingService {
 
     @Override
     public void downloadOriginal(String key, Path destination) throws Exception {
-        GetObjectRequest request = GetObjectRequest.builder()
+        var request = GetObjectRequest.builder()
                 .bucket(bucketName)
                 .key(key)
                 .build();
                 
-        try (InputStream inputStream = s3Client.getObject(request)) {
+        try (var inputStream = s3Client.getObject(request)) {
             Files.copy(inputStream, destination, StandardCopyOption.REPLACE_EXISTING);
         }
     }
 
     @Override
     public void uploadThumbnail(Path source, String key, String contentType) throws Exception {
-        PutObjectRequest request = PutObjectRequest.builder()
+        var request = PutObjectRequest.builder()
                 .bucket(bucketName)
                 .key(key)
                 .contentType(contentType)
@@ -49,7 +48,7 @@ public class S3FileProcessingService extends AbstractFileProcessingService {
         s3Client.putObject(request, RequestBody.fromFile(source));
 
         // Extract the original key from the thumbnail key
-        String originalKey = extractOriginalKey(key);
+        var originalKey = extractOriginalKey(key);
         
         // Find and update metadata
         imageMetadataRepository.findAll().stream()

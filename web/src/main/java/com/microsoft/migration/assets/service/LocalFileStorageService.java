@@ -23,7 +23,7 @@ import static com.microsoft.migration.assets.config.RabbitConfig.IMAGE_PROCESSIN
 
 @Service
 @Profile("dev") // Only active when dev profile is active
-public class LocalFileStorageService implements StorageService {
+public final class LocalFileStorageService implements StorageService {
 
     private static final Logger logger = LoggerFactory.getLogger(LocalFileStorageService.class);
     
@@ -57,8 +57,8 @@ public class LocalFileStorageService implements StorageService {
                 .filter(path -> !path.equals(rootLocation))
                 .map(path -> {
                     try {
-                        String filename = path.getFileName().toString();
-                        BasicFileAttributes attrs = Files.readAttributes(path, BasicFileAttributes.class);
+                        var filename = path.getFileName().toString();
+                        var attrs = Files.readAttributes(path, BasicFileAttributes.class);
                         return new S3StorageItem(
                             filename,
                             filename,
@@ -72,7 +72,7 @@ public class LocalFileStorageService implements StorageService {
                         return null;
                     }
                 })
-                .filter(s3StorageItem -> s3StorageItem != null)
+                .filter(item -> item != null)
                 .collect(Collectors.toList());
         } catch (IOException e) {
             logger.error("Failed to list files", e);
@@ -86,17 +86,17 @@ public class LocalFileStorageService implements StorageService {
             throw new IOException("Failed to store empty file");
         }
         
-        String filename = StringUtils.cleanPath(file.getOriginalFilename());
+        var filename = StringUtils.cleanPath(file.getOriginalFilename());
         if (filename.contains("..")) {
             throw new IOException("Cannot store file with relative path outside current directory");
         }
         
-        Path targetLocation = rootLocation.resolve(filename);
+        var targetLocation = rootLocation.resolve(filename);
         Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
         logger.info("Stored file: {}", targetLocation);
 
         // Send message to queue for thumbnail generation
-        ImageProcessingMessage message = new ImageProcessingMessage(
+        var message = new ImageProcessingMessage(
             filename,
             file.getContentType(),
             getStorageType(),
@@ -107,7 +107,7 @@ public class LocalFileStorageService implements StorageService {
 
     @Override
     public InputStream getObject(String key) throws IOException {
-        Path file = rootLocation.resolve(key);
+        var file = rootLocation.resolve(key);
         if (!Files.exists(file)) {
             throw new FileNotFoundException("File not found: " + key);
         }
@@ -116,8 +116,7 @@ public class LocalFileStorageService implements StorageService {
 
     @Override
     public void deleteObject(String key) throws IOException {
-        // Delete both original and thumbnail if it exists
-        Path file = rootLocation.resolve(key);
+        var file = rootLocation.resolve(key);
         if (!Files.exists(file)) {
             throw new FileNotFoundException("File not found: " + key);
         }
@@ -126,13 +125,12 @@ public class LocalFileStorageService implements StorageService {
 
         // Try to delete thumbnail if it exists
         try {
-            Path thumbnailFile = rootLocation.resolve(getThumbnailKey(key));
+            var thumbnailFile = rootLocation.resolve(getThumbnailKey(key));
             if (Files.exists(thumbnailFile)) {
                 Files.delete(thumbnailFile);
                 logger.info("Deleted thumbnail file: {}", thumbnailFile);
             }
         } catch (Exception e) {
-            // Ignore if thumbnail doesn't exist or can't be deleted
             logger.warn("Could not delete thumbnail for {}: {}", key, e.getMessage());
         }
     }

@@ -15,8 +15,6 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.util.List;
 import java.util.Optional;
 
 @Controller
@@ -28,7 +26,7 @@ public class S3Controller {
 
     @GetMapping
     public String listObjects(Model model) {
-        List<S3StorageItem> objects = storageService.listObjects();
+        var objects = storageService.listObjects();
         model.addAttribute("objects", objects);
         return "list";
     }
@@ -60,7 +58,7 @@ public class S3Controller {
         try {
             // Find the object in the list of objects
             Optional<S3StorageItem> foundObject = storageService.listObjects().stream()
-                    .filter(obj -> obj.getKey().equals(key))
+                    .filter(obj -> obj.key().equals(key))
                     .findFirst();
             
             if (foundObject.isPresent()) {
@@ -79,10 +77,9 @@ public class S3Controller {
     @GetMapping("/view/{key}")
     public ResponseEntity<InputStreamResource> viewObject(@PathVariable String key) {
         try {
-            InputStream inputStream = storageService.getObject(key);
+            var inputStream = storageService.getObject(key);
             
-            HttpHeaders headers = new HttpHeaders();
-            // Use a generic content type if we don't know the exact type
+            var headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
             
             return ResponseEntity.ok()

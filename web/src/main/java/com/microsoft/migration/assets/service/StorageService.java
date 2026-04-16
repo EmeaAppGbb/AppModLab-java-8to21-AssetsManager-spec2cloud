@@ -1,7 +1,6 @@
 package com.microsoft.migration.assets.service;
 
 import com.microsoft.migration.assets.constants.StorageConstants;
-import com.microsoft.migration.assets.model.ImageProcessingMessage;
 import com.microsoft.migration.assets.model.S3StorageItem;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -13,7 +12,7 @@ import java.util.List;
  * Interface for storage operations that can be implemented by different storage providers
  * (AWS S3, local file system, etc.)
  */
-public interface StorageService {
+public sealed interface StorageService permits AwsS3Service, LocalFileStorageService {
     
     /**
      * List all objects in storage

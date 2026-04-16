@@ -16,7 +16,6 @@ import software.amazon.awssdk.services.s3.model.*;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -26,7 +25,7 @@ import static com.microsoft.migration.assets.config.RabbitConfig.IMAGE_PROCESSIN
 @Service
 @RequiredArgsConstructor
 @Profile("!dev") // Active when not in dev profile
-public class AwsS3Service implements StorageService {
+public final class AwsS3Service implements StorageService {
 
     private final S3Client s3Client;
     private final RabbitTemplate rabbitTemplate;
@@ -37,16 +36,16 @@ public class AwsS3Service implements StorageService {
 
     @Override
     public List<S3StorageItem> listObjects() {
-        ListObjectsV2Request request = ListObjectsV2Request.builder()
+        var request = ListObjectsV2Request.builder()
                 .bucket(bucketName)
                 .build();
 
-        ListObjectsV2Response response = s3Client.listObjectsV2(request);
+        var response = s3Client.listObjectsV2(request);
 
         return response.contents().stream()
                 .map(s3Object -> {
                     // Try to get metadata for upload time
-                    Instant uploadedAt = imageMetadataRepository.findAll().stream()
+                    var uploadedAt = imageMetadataRepository.findAll().stream()
                             .filter(metadata -> metadata.getS3Key().equals(s3Object.key()))
                             .map(metadata -> metadata.getUploadedAt().atZone(java.time.ZoneId.systemDefault()).toInstant())
                             .findFirst()
@@ -66,8 +65,8 @@ public class AwsS3Service implements StorageService {
 
     @Override
     public void uploadObject(MultipartFile file) throws IOException {
-        String key = generateKey(file.getOriginalFilename());
-        PutObjectRequest request = PutObjectRequest.builder()
+        var key = generateKey(file.getOriginalFilename());
+        var request = PutObjectRequest.builder()
                 .bucket(bucketName)
                 .key(key)
                 .contentType(file.getContentType())
@@ -76,7 +75,7 @@ public class AwsS3Service implements StorageService {
         s3Client.putObject(request, RequestBody.fromInputStream(file.getInputStream(), file.getSize()));
 
         // Send message to queue for thumbnail generation
-        ImageProcessingMessage message = new ImageProcessingMessage(
+        var message = new ImageProcessingMessage(
             key,
             file.getContentType(),
             getStorageType(),
@@ -85,7 +84,7 @@ public class AwsS3Service implements StorageService {
         rabbitTemplate.convertAndSend(IMAGE_PROCESSING_QUEUE, message);
 
         // Create and save metadata to database
-        ImageMetadata metadata = new ImageMetadata();
+        var metadata = new ImageMetadata();
         metadata.setId(UUID.randomUUID().toString());
         metadata.setFilename(file.getOriginalFilename());
         metadata.setContentType(file.getContentType());
@@ -98,7 +97,7 @@ public class AwsS3Service implements StorageService {
 
     @Override
     public InputStream getObject(String key) throws IOException {
-        GetObjectRequest request = GetObjectRequest.builder()
+        var request = GetObjectRequest.builder()
                 .bucket(bucketName)
                 .key(key)
                 .build();
@@ -109,7 +108,7 @@ public class AwsS3Service implements StorageService {
     @Override
     public void deleteObject(String key) throws IOException {
         // Delete both original and thumbnail if it exists
-        DeleteObjectRequest request = DeleteObjectRequest.builder()
+        var request = DeleteObjectRequest.builder()
                 .bucket(bucketName)
                 .key(key)
                 .build();
@@ -118,7 +117,7 @@ public class AwsS3Service implements StorageService {
 
         try {
             // Try to delete thumbnail if it exists
-            DeleteObjectRequest thumbnailRequest = DeleteObjectRequest.builder()
+            var thumbnailRequest = DeleteObjectRequest.builder()
                     .bucket(bucketName)
                     .key(getThumbnailKey(key))
                     .build();
@@ -131,7 +130,7 @@ public class AwsS3Service implements StorageService {
         imageMetadataRepository.findAll().stream()
                 .filter(metadata -> metadata.getS3Key().equals(key))
                 .findFirst()
-                .ifPresent(metadata -> imageMetadataRepository.delete(metadata));
+                .ifPresent(imageMetadataRepository::delete);
     }
 
     @Override

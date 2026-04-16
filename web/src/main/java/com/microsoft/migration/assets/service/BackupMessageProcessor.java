@@ -32,22 +32,22 @@ public class BackupMessageProcessor {
                                     Channel channel, 
                                     @Header(AmqpHeaders.DELIVERY_TAG) long deliveryTag) {
         try {
-            log.info("[BACKUP] Monitoring message: {}", message.getKey());
+            log.info("[BACKUP] Monitoring message: {}", message.key());
             log.info("[BACKUP] Content type: {}, Storage: {}, Size: {}", 
-                    message.getContentType(), message.getStorageType(), message.getSize());
+                    message.contentType(), message.storageType(), message.size());
             
             // Acknowledge the message
             channel.basicAck(deliveryTag, false);
-            log.info("[BACKUP] Successfully processed message: {}", message.getKey());
+            log.info("[BACKUP] Successfully processed message: {}", message.key());
         } catch (Exception e) {
-            log.error("[BACKUP] Failed to process message: " + message.getKey(), e);
+            log.error("[BACKUP] Failed to process message: " + message.key(), e);
             
             try {
                 // Reject the message and requeue it
                 channel.basicNack(deliveryTag, false, true);
-                log.warn("[BACKUP] Message requeued: {}", message.getKey());
+                log.warn("[BACKUP] Message requeued: {}", message.key());
             } catch (IOException  ackEx) {
-                log.error("[BACKUP] Error handling RabbitMQ acknowledgment: {}", message.getKey(), ackEx);
+                log.error("[BACKUP] Error handling RabbitMQ acknowledgment: {}", message.key(), ackEx);
             }
         }
     }

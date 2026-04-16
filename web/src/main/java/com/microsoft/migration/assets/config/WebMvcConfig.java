@@ -49,10 +49,10 @@ public class WebMvcConfig implements WebMvcConfigurer {
         
         @Override
         public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
-            long startTime = System.currentTimeMillis();
+            var startTime = System.currentTimeMillis();
             request.setAttribute("startTime", startTime);
             
-            String operation = determineFileOperation(request);
+            var operation = determineFileOperation(request);
             System.out.printf("[FILE-OP] %s %s - %s started at %d%n", 
                     request.getMethod(), request.getRequestURI(), operation, startTime);
             
@@ -62,9 +62,9 @@ public class WebMvcConfig implements WebMvcConfigurer {
         @Override
         public void afterCompletion(HttpServletRequest request, HttpServletResponse response, 
                                   Object handler, Exception ex) {
-            long startTime = (Long) request.getAttribute("startTime");
-            long duration = System.currentTimeMillis() - startTime;
-            String operation = determineFileOperation(request);
+            var startTime = (Long) request.getAttribute("startTime");
+            var duration = System.currentTimeMillis() - startTime;
+            var operation = determineFileOperation(request);
             
             if (ex != null) {
                 System.out.printf("[FILE-OP] %s %s - %s FAILED in %d ms (Status: %d, Error: %s)%n", 
@@ -78,22 +78,17 @@ public class WebMvcConfig implements WebMvcConfigurer {
         }
         
         private String determineFileOperation(HttpServletRequest request) {
-            String uri = request.getRequestURI();
-            String method = request.getMethod();
+            var uri = request.getRequestURI();
+            var method = request.getMethod();
             
-            if (uri.contains("/upload")) {
-                return "FILE_UPLOAD";
-            } else if (uri.contains("/delete/")) {
-                return "FILE_DELETE";
-            } else if (uri.contains("/view/")) {
-                return "FILE_DOWNLOAD";
-            } else if (uri.contains("/view-page/")) {
-                return "FILE_VIEW_PAGE";
-            } else if ("GET".equals(method) && uri.equals("/" + StorageConstants.STORAGE_PATH)) {
-                return "FILE_LIST";
-            } else {
-                return "FILE_OPERATION";
-            }
+            return switch (uri) {
+                case String u when u.contains("/upload") -> "FILE_UPLOAD";
+                case String u when u.contains("/delete/") -> "FILE_DELETE";
+                case String u when u.contains("/view/") -> "FILE_DOWNLOAD";
+                case String u when u.contains("/view-page/") -> "FILE_VIEW_PAGE";
+                case String u when "GET".equals(method) && u.equals("/" + StorageConstants.STORAGE_PATH) -> "FILE_LIST";
+                default -> "FILE_OPERATION";
+            };
         }
     }
 }
